@@ -17,9 +17,11 @@
 // The one tool set Benny exposes. It is the same, in the same order, on every request so that
 // llama-server can reuse its prompt cache.
 
+var clock = require('./clock');
 var uiTools = require('./ui_tools');
 var weatherTool = require('./weather_tool');
 var watchTools = require('./watch_tools');
+var validation = require('./validation');
 
 exports.getDeclarations = function() {
     return uiTools.getDeclarations()
@@ -43,7 +45,15 @@ exports.execute = function(session, call, callback) {
         weatherTool.execute(session, args, callback);
         return;
     }
-    if (!watchTools.execute(session, call.name, args, callback)) {
+    if (!validation.hasValidator(call.name)) {
         callback({status: 'error', error: 'Unknown tool ' + call.name + '.'});
+        return;
     }
+    var checked = validation.validate(call.name, args, clock.now());
+    if (!checked.ok) {
+        console.log('Rejected ' + call.name + ' arguments: ' + checked.error);
+        callback({status: 'error', error: checked.error});
+        return;
+    }
+    watchTools.execute(session, call.name, checked.args, callback);
 };

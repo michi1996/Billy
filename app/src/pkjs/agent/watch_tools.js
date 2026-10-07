@@ -15,6 +15,10 @@
  */
 
 var actions = require('../actions');
+var reminderStore = require('../lib/reminders');
+
+// Waiting longer than this for Pebble.getTimelineToken means timeline pins won't work either.
+var TIMELINE_TOKEN_WAIT_MS = 5000;
 
 function schema(properties, required) {
     return {
@@ -96,11 +100,43 @@ exports.getDeclarations = function() {
     ];
 };
 
+// German messages for the watch, keyed on the (English) errors from actions/alarms.js.
+var WATCH_ERROR_MESSAGES = [
+    [/limit of eight alarms/i, 'Maximal 8 Wecker und Timer gleichzeitig – bitte zuerst einen löschen'],
+    [/already scheduled on your Pebble/i, 'Zu dieser Zeit ist auf der Uhr schon ein Wecker oder Timer geplant'],
+    [/in the past/i, 'Die Zeit liegt in der Vergangenheit'],
+    [/no alarm set for that time/i, 'Zu dieser Zeit ist kein Wecker oder Timer gestellt'],
+    [/were set/i, 'Es ist nichts gestellt'],
+    [/timed out waiting for a response from the watch/i, 'Die Uhr hat nicht geantwortet']
+];
+
+exports.TIMELINE_UNAVAILABLE_MESSAGE = 'Erinnerungen nicht verfügbar – kein Timeline-Zugang';
+
+function withUserMessage(result) {
+    if (!result || !result.error) {
+        return result;
+    }
+    for (var i = 0; i < WATCH_ERROR_MESSAGES.length; i++) {
+        if (WATCH_ERROR_MESSAGES[i][0].test(result.error)) {
+            result.user_message = WATCH_ERROR_MESSAGES[i][1];
+            break;
+        }
+    }
+    return result;
+}
+
+// Some actions can report twice (e.g. deleteReminder for an unknown id); only the first counts.
 function callAction(session, action, callback) {
+    var answered = false;
     var ws = {
         send: function(resultString) {
+            if (answered) {
+                console.log('Ignoring a second result for action ' + action.action + '.');
+                return;
+            }
+            answered = true;
             try {
-                callback(JSON.parse(resultString));
+                callback(withUserMessage(JSON.parse(resultString)));
             } catch (e) {
                 callback({error: e.message});
             }
@@ -109,19 +145,60 @@ function callAction(session, action, callback) {
     actions.handleAction(session, ws, JSON.stringify(action));
 }
 
-function executeSetReminder(session, args, callback) {
-    session.handleMessage({data: 'fSetting a reminder'});
-    var time = args.time;
-    if (args.delay_mins) {
-        time = new Date(Date.now() + parseInt(args.delay_mins, 10) * 60000).toISOString();
+function checkTimelineAvailable(callback) {
+    var done = false;
+    var timer = setTimeout(function() {
+        finish(false);
+    }, TIMELINE_TOKEN_WAIT_MS);
+    function finish(available) {
+        if (done) {
+            return;
+        }
+        done = true;
+        clearTimeout(timer);
+        callback(available);
     }
-    callAction(session, {
-        action: 'set_reminder',
-        what: args.what,
-        time: time
-    }, callback);
+    try {
+        Pebble.getTimelineToken(function() {
+            finish(true);
+        }, function() {
+            finish(false);
+        });
+    } catch (e) {
+        finish(false);
+    }
 }
 
+function executeSetReminder(session, args, callback) {
+    session.handleMessage({data: 'fSetting a reminder'});
+    checkTimelineAvailable(function(available) {
+        if (!available) {
+            console.log('Timeline token unavailable; not setting a reminder.');
+            callback({
+                error: 'The Pebble timeline is not available (no timeline token), so reminders cannot be set right now.',
+                user_message: exports.TIMELINE_UNAVAILABLE_MESSAGE
+            });
+            return;
+        }
+        callAction(session, {
+            action: 'set_reminder',
+            what: args.what,
+            time: args.time
+        }, callback);
+    });
+}
+
+function reminderExists(id) {
+    var all = reminderStore.getAllReminders();
+    for (var i = 0; i < all.length; i++) {
+        if (all[i].id === id) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// `args` must already have been checked by validation.js.
 exports.execute = function(session, name, args, callback) {
     switch (name) {
     case 'set_alarm':
@@ -156,6 +233,10 @@ exports.execute = function(session, name, args, callback) {
         callAction(session, {action: 'get_reminders'}, callback);
         return true;
     case 'delete_reminder':
+        if (!reminderExists(args.id)) {
+            callback({error: 'No active reminder has id ' + args.id + '. Call get_reminders to find the right id.'});
+            return true;
+        }
         session.handleMessage({data: 'fDeleting a reminder'});
         callAction(session, {action: 'delete_reminder', id: args.id}, callback);
         return true;
