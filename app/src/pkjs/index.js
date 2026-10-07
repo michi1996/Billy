@@ -21,10 +21,12 @@ var clayConfig = require('./config.json');
 var customConfigFunction = require('./custom_config');
 var config = require('./config');
 var reminders = require('./reminders');
+var settingsPage = require('./settings_page');
 var package_json = require('package.json');
 
 
-var clay = new Clay(clayConfig, customConfigFunction);
+var clay = new Clay(clayConfig, customConfigFunction, {autoHandleEvents: false});
+settingsPage.install(clay, localStorage, Pebble);
 
 function main() {
     location.update();
