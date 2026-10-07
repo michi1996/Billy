@@ -6,6 +6,9 @@
     "pebble-app"
   ],
   "private": true,
+  "scripts": {
+    "test": "node test/run.js"
+  },
   "dependencies": {
     "@rebble/clay": "^1.0.6",
     "pebble-events": "^1.2.0"
