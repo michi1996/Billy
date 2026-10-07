@@ -9,7 +9,7 @@ const NOW = Date.UTC(2026, 9, 7, 19, 46, 0);
 
 function setupRun(env, responses, prompt, threadId) {
     h.setNow(NOW);
-    h.settings({LLM_BASE_URL: 'https://llm.example.ch', CF_ACCESS_CLIENT_ID: 'id', CF_ACCESS_CLIENT_SECRET: 'secret', LOCATION_ENABLED: false});
+    h.settings({LLM_BASE_URL: 'https://llm.example.ch', CF_ACCESS_CLIENT_ID: 'id', CF_ACCESS_CLIENT_SECRET: 'secret', LOCATION_ENABLED: false, FAST_PATH_ENABLED: false});
     const watch = new FakeWatch(env, NOW / 1000);
     const Session = h.pkjs('session').Session;
     const Runtime = h.pkjs('agent/runtime').Runtime;

@@ -18,6 +18,8 @@
 // Derived from Billy's runtime, now speaking the OpenAI chat message format.
 
 var clock = require('./clock');
+var config = require('../config');
+var fastPath = require('./fast_path');
 var formatting = require('./formatting');
 var llmClient = require('./llm_client');
 var localHistory = require('./local_history');
@@ -43,6 +45,9 @@ function Runtime(session, options) {
 Runtime.prototype.run = function() {
     var session = this.session;
     var threadId = localHistory.ensureThreadId(session);
+    if (config.isFastPathEnabled() && runFastPath(session, threadId)) {
+        return;
+    }
     var messages = [{role: 'system', content: promptBuilder.buildSystemPrompt()}]
         .concat(localHistory.buildMessages(threadId))
         .concat([{role: 'user', content: promptBuilder.buildUserMessage(session.prompt, clock.now())}]);
@@ -56,6 +61,19 @@ Runtime.prototype.run = function() {
     };
     step(loop, 0);
 };
+
+// Simple timer/alarm commands are handled without the model (see fast_path.js).
+function runFastPath(session, threadId) {
+    return fastPath.tryHandle(session, function(text, isError) {
+        localHistory.recordTurn(threadId, session.prompt, text);
+        if (isError) {
+            fail(session, text);
+            return;
+        }
+        streamText(session, text);
+        finish(session);
+    });
+}
 
 function step(loop, round) {
     // After MAX_TOOL_ROUNDS rounds of tools the model has to answer with text.
