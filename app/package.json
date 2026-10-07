@@ -1,6 +1,6 @@
 {
-  "name": "Billy",
-  "author": "Thomas Bolger",
+  "name": "Benny",
+  "author": "Achi",
   "version": "0.1",
   "keywords": [
     "pebble-app"
@@ -11,8 +11,8 @@
     "pebble-events": "^1.2.0"
   },
   "pebble": {
-    "displayName": "Billy",
-    "uuid": "f74b42bb-3473-444f-9722-dd34136d9b02",
+    "displayName": "Benny",
+    "uuid": "8384d88e-7f83-48c2-a152-cb9bb8ee0fae",
     "sdkVersion": "3",
     "enableMultiJS": true,
     "capabilities": [
@@ -25,21 +25,10 @@
     "watchapp": {
       "watchface": false
     },
-    "companionApp": {
-      "android": {
-        "url": "https://github.com/tombolger/Billy",
-        "apps": [
-          {
-            "package": "com.tombo.billyassistant.companion"
-          }
-        ]
-      }
-    },
     "messageKeys": [
       "CHAT",
       "FUNCTION",
       "PROMPT",
-      "PROMPT_CONTEXT",
       "CLOSE_CODE",
       "CLOSE_REASON",
       "CLOSE_WAS_CLEAN",
@@ -56,10 +45,6 @@
       "CANCEL_ALARM_IS_TIMER",
       "LANGUAGE_CODE",
       "UNIT_PREFERENCE",
-      "QUOTA_REQUEST",
-      "QUOTA_RESPONSE_USED",
-      "QUOTA_RESPONSE_REMAINING",
-      "QUOTA_RESPONSE_TEXT",
       "LOCATION_ENABLED",
       "WARNING",
       "WEATHER_WIDGET",
@@ -93,20 +78,10 @@
       "HIGHLIGHT_WIDGET",
       "HIGHLIGHT_WIDGET_PRIMARY",
       "HIGHLIGHT_WIDGET_SECONDARY",
-      "QUOTA_HAS_SUBSCRIPTION",
-      "QUOTA_IS_GEMINI_API",
-      "FEEDBACK_TEXT",
-      "FEEDBACK_APP_MAJOR",
-      "FEEDBACK_APP_MINOR",
-      "FEEDBACK_ALARM_COUNT",
-      "FEEDBACK_SEND_RESULT",
       "QUICK_LAUNCH_BEHAVIOUR",
       "TIMER_VIBE_PATTERN",
       "ALARM_VIBE_PATTERN",
-      "REPORT_THREAD_UUID",
-      "REPORT_SEND_RESULT",
       "COBBLE_WARNING",
-      "ACTION_FEEDBACK_SENT",
       "IMAGE_WIDTH",
       "IMAGE_HEIGHT",
       "IMAGE_START_BYTE_SIZE",
@@ -125,19 +100,8 @@
       "CLARIFY_OPTION_1",
       "CLARIFY_OPTION_2",
       "CLARIFY_OPTION_3",
-        "CONFIRM_TRANSCRIPTS",
-        "ACTION_SETTINGS_UPDATED",
-        "ASSISTANT_RUNTIME",
-      "GEMINI_API_KEY",
-      "GEMINI_MODEL",
-      "GEMINI_MONTHLY_BUDGET_USD",
-      "GITHUB_ISSUES_URL",
-      "FEEDBACK_POST_URL",
-      "USER_PROFILE_CONTEXT",
-      "WATCH_PROMPT",
-      "WATCH_READY",
-      "ANDROID_COMPANION_READY",
-      "ANDROID_REQUEST_ID"
+      "CONFIRM_TRANSCRIPTS",
+      "ACTION_SETTINGS_UPDATED"
     ],
     "resources": {
       "media": [
@@ -243,8 +207,8 @@
           "type": "raw"
         },
         {
-          "file": "text/gemini_consent.txt",
-          "name": "GEMINI_CONSENT_TEXT",
+          "file": "text/privacy_consent.txt",
+          "name": "PRIVACY_CONSENT_TEXT",
           "type": "raw"
         },
         {
@@ -255,16 +219,6 @@
         {
           "file": "text/location_consent.txt",
           "name": "LOCATION_CONSENT_TEXT",
-          "type": "raw"
-        },
-        {
-          "file": "text/feedback_blurb.txt",
-          "name": "FEEDBACK_BLURB",
-          "type": "raw"
-        },
-        {
-          "file": "text/report_blurb.txt",
-          "name": "REPORT_BLURB",
           "type": "raw"
         },
         {
@@ -394,24 +348,6 @@
           ]
         },
         {
-          "file": "icons/menu_feedback.png",
-          "name": "MENU_ICON_FEEDBACK",
-          "type": "bitmap",
-          "targetPlatforms": [
-            "basalt",
-            "emery"
-          ]
-        },
-        {
-          "file": "icons/menu_feedback_bw.png",
-          "name": "MENU_ICON_FEEDBACK",
-          "type": "bitmap",
-          "memoryFormat": "1Bit",
-          "targetPlatforms": [
-            "diorite"
-          ]
-        },
-        {
           "file": "icons/menu_legal.png",
           "name": "MENU_ICON_LEGAL",
           "type": "bitmap",
@@ -423,24 +359,6 @@
         {
           "file": "icons/menu_legal_bw.png",
           "name": "MENU_ICON_LEGAL",
-          "type": "bitmap",
-          "memoryFormat": "1Bit",
-          "targetPlatforms": [
-            "diorite"
-          ]
-        },
-        {
-          "file": "icons/menu_quota.png",
-          "name": "MENU_ICON_QUOTA",
-          "type": "bitmap",
-          "targetPlatforms": [
-            "basalt",
-            "emery"
-          ]
-        },
-        {
-          "file": "icons/menu_quota_bw.png",
-          "name": "MENU_ICON_QUOTA",
           "type": "bitmap",
           "memoryFormat": "1Bit",
           "targetPlatforms": [
@@ -537,13 +455,8 @@
           "type": "raw"
         },
         {
-          "file": "text/changelog/1.4.txt",
-          "name": "CHANGELOG_1_4",
-          "type": "raw"
-        },
-        {
-          "file": "text/changelog/1.5.txt",
-          "name": "CHANGELOG_1_5",
+          "file": "text/changelog/current.txt",
+          "name": "CHANGELOG_CURRENT",
           "type": "raw"
         },
         {

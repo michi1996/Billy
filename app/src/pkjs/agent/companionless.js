@@ -17,9 +17,7 @@
 var gemini = require('./gemini');
 var formatting = require('./formatting');
 var localHistory = require('./local_history');
-var profileTools = require('./profile_tools');
 var promptBuilder = require('./prompt');
-var usage = require('./usage');
 var watchTools = require('./watch_tools');
 var uiTools = require('./ui_tools');
 
@@ -33,11 +31,8 @@ CompanionlessRuntime.prototype.run = function() {
 
 function runCompanionlessModel(session) {
     var threadId = localHistory.ensureThreadId(session);
-    var searchGrounding = true;
+    var searchGrounding = false;
     var tools = uiTools.getDeclarations();
-    if (profileTools.shouldExpose(session.prompt)) {
-        tools = tools.concat(profileTools.getDeclarations());
-    }
     if (watchTools.shouldExpose(session.prompt)) {
         tools = tools.concat(watchTools.getDeclarations());
     }
@@ -73,7 +68,6 @@ function runModelLoop(session, threadId, history, iteration, progress, searchGro
             return;
         }
         if (response.functionCalls && response.functionCalls.length > 0 && iteration < 3) {
-            usage.recordGeminiResponse(response);
             appendHistoryItems(history, response.historyItems);
             executeFunctionCalls(session, history, response.functionCalls, function(stoppedForUser) {
                 if (shouldStandDown(session)) {
@@ -90,10 +84,6 @@ function runModelLoop(session, threadId, history, iteration, progress, searchGro
             return;
         }
         var text = response.text || 'I did not receive a usable answer.';
-        usage.recordGeminiResponse(response);
-        if (searchGrounding && iteration === 0) {
-            usage.recordGroundedSearch();
-        }
         localHistory.recordTurn(threadId, session.prompt, text);
         progress.done();
         streamText(session, text);
@@ -184,21 +174,6 @@ function executeFunctionCalls(session, history, calls, callback) {
             next();
         });
         if (handledByUi) {
-            return;
-        }
-        var handledByProfile = profileTools.execute(session, call, function(result) {
-            history.push({
-                type: 'function_result',
-                name: call.name,
-                call_id: call.id,
-                result: [{
-                    type: 'text',
-                    text: JSON.stringify(result)
-                }]
-            });
-            next();
-        });
-        if (handledByProfile) {
             return;
         }
         watchTools.execute(session, call, function(result) {

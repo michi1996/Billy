@@ -59,14 +59,14 @@ jobs:
       - name: pebble-build
         run: cd app/ && yes | ~/sdk/bin/pebble build
       - name: rename-app
-        run: cp app/build/app.pbw Billy-g${{ env.COMMIT_SHORT_SHA }}.pbw
+        run: cp app/build/app.pbw Benny-g${{ env.COMMIT_SHORT_SHA }}.pbw
       - name: generate elf bundle
         run: mkdir elfs && cp app/build/emery/pebble-app.elf elfs/pebble-app-emery.elf && zip -r elfs.zip elfs
       - name: Upload PBW
         uses: actions/upload-artifact@v4
         with:
-          name: Billy PBW
-          path: Billy-g${{ env.COMMIT_SHORT_SHA }}.pbw
+          name: Benny PBW
+          path: Benny-g${{ env.COMMIT_SHORT_SHA }}.pbw
           if-no-files-found: error
       - name: Upload ELFs
         uses: actions/upload-artifact@v4

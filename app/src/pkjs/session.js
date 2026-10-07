@@ -16,51 +16,29 @@
 
 var LOGGING_ENABLED = false;
 
-var actions = require('./actions');
-var widgets = require('./widgets');
 var messageQueue = require('./lib/message_queue').Queue;
-var runtimeRouter = require('./agent/runtime_router');
+var CompanionlessRuntime = require('./agent/companionless').CompanionlessRuntime;
 
-function Session(prompt, threadId, androidRequestId) {
+function Session(prompt, threadId) {
     this.prompt = prompt;
     this.threadId = threadId;
-    this.androidRequestId = androidRequestId;
-    this.ws = undefined;
     this.hasOpenDialog = false;
-    this.shouldStandDown = undefined;
 }
 
 Session.prototype.run = function() {
     if (LOGGING_ENABLED) {
         messageQueue.startLogging();
     }
-    runtimeRouter.run(this);
+    new CompanionlessRuntime(this).run();
 }
 
+// Messages use a one-letter prefix, inherited from the Bobby websocket protocol:
+// c = chat text, f = progress ("function") text, d = done, t = thread id, w = warning.
 Session.prototype.handleMessage = function(event) {
     var message = event.data;
     console.log(message);
     if (message[0] == 'c') {
-        var widgetRegex = /<<!!WIDGET:(.+?)!!>>/;
         var content = message.substring(1);
-        var match;
-        while (content.length > 0) {
-            match = widgetRegex.exec(content);
-            if (!match) {
-                break;
-            }
-            var widget = match[1];
-            console.log("Widget found: " + widget);
-            var start = match.index;
-            if (start != 0) {
-                this.enqueue({
-                    CHAT: content.substring(0, start)
-                });
-            }
-            this.processWidget(widget);
-            this.hasOpenDialog = false;
-            content = content.substring(match.index + match[0].length);
-        }
         if (content.length > 0) {
             this.hasOpenDialog = true;
             this.enqueue({
@@ -87,8 +65,6 @@ Session.prototype.handleMessage = function(event) {
             console.log(JSON.stringify(messageQueue.getLog()));
             messageQueue.stopLogging();
         }
-    } else if (message[0] == 'a') {
-        actions.handleAction(this, this.ws, message.substring(1));
     } else if (message[0] == 't') {
         this.enqueue({
             THREAD_ID: message.substring(1)
@@ -98,10 +74,6 @@ Session.prototype.handleMessage = function(event) {
             WARNING: message.substring(1)
         });
     }
-}
-
-Session.prototype.processWidget = function(widgetData) {
-    widgets.handleWidget(this, widgetData);
 }
 
 Session.prototype.enqueue = function(message) {
@@ -122,4 +94,3 @@ Session.prototype.handleClose = function(event) {
 }
 
 exports.Session = Session;
-exports.userToken = null;

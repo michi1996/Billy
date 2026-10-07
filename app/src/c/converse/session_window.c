@@ -31,7 +31,6 @@
 
 #include <pebble.h>
 
-#include "report_window.h"
 
 #define PADDING 5
 #define CLARIFICATION_DICTATE_OPTION "Dictate..."
@@ -82,7 +81,6 @@ static void prv_timed_out(void *ctx);
 static void prv_cancel_timeout(SessionWindow* sw);
 static void prv_action_menu_query(ActionMenu *action_menu, const ActionMenuItem *action, void *context);
 static void prv_action_menu_input(ActionMenu *action_menu, const ActionMenuItem *action, void *context);
-static void prv_action_menu_report_thread(ActionMenu *action_menu, const ActionMenuItem *action, void *context);
 static void prv_start_dictation(SessionWindow *sw);
 static SessionWindow* prv_active_session_window(void);
 static bool prv_submit_clarification_answer(SessionWindow *sw, const char *answer_text, const char *display_override);
@@ -599,13 +597,12 @@ static void prv_select_long_pressed(ClickRecognizerRef recognizer, void *context
   if (!conversation_is_idle(conversation_manager_get_conversation(sw->manager))) {
     return;
   }
-  ActionMenuLevel *action_menu = baction_menu_level_create(5);
+  ActionMenuLevel *action_menu = baction_menu_level_create(4);
   action_menu_level_add_action(action_menu, "\"Yes.\"", prv_action_menu_input, "Yes.");
   action_menu_level_add_action(action_menu, "\"No.\"", prv_action_menu_input, "No.");
   Conversation *conversation = conversation_manager_get_conversation(sw->manager);
   ConversationEntry *entry = conversation_peek(conversation);
   EntryType type = conversation_entry_get_type(entry);
-  int separator_index = 3;
   if (type == EntryTypeError) {
     ConversationEntry *last_prompt = conversation_get_last_of_type(conversation, EntryTypePrompt);
     if (last_prompt != NULL) {
@@ -613,12 +610,9 @@ static void prv_select_long_pressed(ClickRecognizerRef recognizer, void *context
       sw->last_prompt_label = bmalloc(strlen(prompt->prompt) + 3);
       snprintf(sw->last_prompt_label, strlen(prompt->prompt) + 3, "\"%s\"", prompt->prompt);
       action_menu_level_add_action(action_menu, sw->last_prompt_label, prv_action_menu_input, prompt->prompt);
-      separator_index++;
     }
   }
   action_menu_level_add_action(action_menu, "Dictate", prv_action_menu_query, NULL);
-  action_menu_level_set_separator_index(action_menu, separator_index);
-  action_menu_level_add_action(action_menu, "Report conversation", prv_action_menu_report_thread, NULL);
   ActionMenuConfig config = (ActionMenuConfig) {
     .root_level = action_menu,
     .colors = {
@@ -646,11 +640,6 @@ static void prv_action_menu_input(ActionMenu *action_menu, const ActionMenuItem 
   const char* input = action_menu_item_get_action_data(action);
   conversation_manager_add_input(sw->manager, input);
   sw->query_time = time(NULL);
-}
-
-static void prv_action_menu_report_thread(ActionMenu *action_menu, const ActionMenuItem *action, void *context) {
-  SessionWindow* sw = context;
-  report_window_push(conversation_get_thread_id(conversation_manager_get_conversation(sw->manager)));
 }
 
 static void prv_scrolled_handler(ScrollLayer* scroll_layer, void* context) {

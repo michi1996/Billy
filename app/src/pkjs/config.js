@@ -36,14 +36,6 @@ exports.isLocationEnabled = function() {
     return !!exports.getSettings()['LOCATION_ENABLED'];
 }
 
-exports.RUNTIME_AUTOMATIC = 'automatic';
-exports.RUNTIME_COMPANIONLESS = 'companionless';
-exports.RUNTIME_ANDROID = 'android';
-
-exports.getAssistantRuntime = function() {
-    return exports.getSetting('ASSISTANT_RUNTIME', exports.RUNTIME_AUTOMATIC);
-}
-
 exports.getGeminiApiKey = function() {
     return String(exports.getSetting('GEMINI_API_KEY', '') || '').replace(/\s+/g, '');
 }
@@ -54,24 +46,4 @@ exports.getGeminiModel = function() {
         return 'gemini-3.1-flash-lite';
     }
     return model;
-}
-
-exports.getGeminiMonthlyBudgetUsd = function() {
-    return exports.getSetting('GEMINI_MONTHLY_BUDGET_USD', '10');
-}
-
-exports.getGithubIssuesUrl = function() {
-    return exports.getSetting('GITHUB_ISSUES_URL', 'https://github.com/tombolger/Billy/issues/new');
-}
-
-exports.getFeedbackPostUrl = function() {
-    return String(exports.getSetting('FEEDBACK_POST_URL', '') || '').replace(/^\s+|\s+$/g, '');
-}
-
-exports.getUserProfileContext = function() {
-    return String(exports.getSetting('USER_PROFILE_CONTEXT', '') || '')
-        .replace(/[\r\n]+/g, ' ')
-        .replace(/\s+/g, ' ')
-        .replace(/^\s+|\s+$/g, '')
-        .substring(0, 1200);
 }

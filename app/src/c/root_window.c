@@ -29,8 +29,6 @@
 #include "version/version.h"
 #include "vibes/haptic_feedback.h"
 
-#define BILLY_MESSAGE_KEY_WATCH_READY 10123
-
 struct RootWindow {
   Window* window;
   ActionBarLayer* action_bar;
@@ -61,7 +59,6 @@ static int prv_load_suggestions(char*** suggestions);
 static void prv_action_menu_closed(ActionMenu *action_menu, const ActionMenuItem *performed_action, void *context);
 static void prv_suggestion_clicked(ActionMenu *action_menu, const ActionMenuItem *action, void *context);
 static void prv_app_message_handler(DictionaryIterator *iter, void *context);
-static void prv_send_watch_ready(void);
 
 RootWindow* root_window_create() {
   RootWindow* rw = bmalloc(sizeof(RootWindow));
@@ -150,7 +147,6 @@ static void prv_window_appear(Window* window) {
   if (!rw->app_message_handle) {
     rw->app_message_handle = events_app_message_register_inbox_received(prv_app_message_handler, rw);
   }
-  prv_send_watch_ready();
   BOBBY_LOG(APP_LOG_LEVEL_DEBUG, "Window appeared. Heap usage increased %d bytes", heap_size - heap_bytes_free());
 }
 
@@ -182,20 +178,10 @@ static void prv_app_message_handler(DictionaryIterator *iter, void *context) {
   }
   if (tuple->value->int32 == 1) {
     rw->talking_horse_overridden = true;
-    talking_horse_layer_set_text(rw->talking_horse_layer, "Cobble has many Billy bugs.");
+    talking_horse_layer_set_text(rw->talking_horse_layer, "Cobble has many Benny bugs.");
     window_set_background_color(rw->window, COLOR_FALLBACK(GColorRed, GColorDarkGray));
     vibe_haptic_feedback();
   }
-}
-
-static void prv_send_watch_ready(void) {
-  DictionaryIterator *iter;
-  AppMessageResult result = app_message_outbox_begin(&iter);
-  if (result != APP_MSG_OK || !iter) {
-    return;
-  }
-  dict_write_uint8(iter, BILLY_MESSAGE_KEY_WATCH_READY, 1);
-  app_message_outbox_send();
 }
 
 static void prv_time_changed(struct tm *tick_time, TimeUnits time_changed, void *context) {
@@ -269,10 +255,11 @@ static void prv_more_clicked(ClickRecognizerRef recognizer, void* context) {
 static int prv_load_suggestions(char*** suggestions) {
   ResHandle handle = resource_get_handle(RESOURCE_ID_SAMPLE_PROMPTS);
   size_t size = resource_size(handle);
-  char* buffer = bmalloc(size);
+  char* buffer = bmalloc(size + 1);
   resource_load(handle, (uint8_t*)buffer, size);
+  buffer[size] = '\0';
   int count = 1;
-  for (size_t i = 0; i < size; ++i) {
+  for (size_t i = 0; i + 1 < size; ++i) {
     if (buffer[i] == '\n') {
       ++count;
     }
