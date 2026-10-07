@@ -1,6 +1,7 @@
 var location = require("../location");
 var reminders = require("../reminders");
 var emulatorSession = require("./emulator_session");
+var session = require("../session");
 var config = require("../config");
 
 function main() {
@@ -14,8 +15,17 @@ function handleAppMessage(e) {
     console.log(JSON.stringify(e));
     var data = e.payload;
     if (data.PROMPT) {
-        console.log("Starting a new Session...");
-        var s = new emulatorSession.Session(data.PROMPT, data.THREAD_ID);
+        // The "Emulator: use the real server" setting sends prompts to the configured server,
+        // using the values stored by the config page (pebble emu-app-config). Otherwise the
+        // emulator replays recorded answers.
+        var s;
+        if (config.isEmulatorRealServerEnabled()) {
+            console.log("Starting a real Session against the configured server...");
+            s = new session.Session(data.PROMPT, data.THREAD_ID);
+        } else {
+            console.log("Starting a prerecorded Session...");
+            s = new emulatorSession.Session(data.PROMPT, data.THREAD_ID);
+        }
         s.run();
         return;
     }
