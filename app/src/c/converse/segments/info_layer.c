@@ -114,7 +114,7 @@ static char *prv_get_content_text(InfoLayer *layer) {
       }
       return data->content_text;
     default:
-      return "(Billy bug)";
+      return "(Benny bug)";
   }
 }
 

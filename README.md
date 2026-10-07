@@ -1,162 +1,110 @@
-# Billy
+# Benny
 
-Billy is a Pebble smartwatch assistant built from Bobby with a different goal: keep the lightweight, Pebble-native assistant experience, but make it useful with modern personal AI and optional phone-side Google account tools.
+Benny ist ein Sprachassistent für Pebble-Uhren von Core Devices (Core Time 2 / Emery), der mit
+**deinem eigenen Sprachmodell-Server** spricht: `llama-server` (llama.cpp, z. B. mit
+Qwen 2.5 14B) hinter einem Cloudflare Tunnel, geschützt mit einem Cloudflare Access Service Token.
 
-Billy is designed to be a drop-in Pebble app. It does not require a hosted helper server, proxy, Redis instance, or developer-operated backend. Users bring their own Gemini API key for model usage, and the optional Android companion keeps private Google API calls on the user's phone.
+Benny ist ein Fork von [Billy](https://github.com/TomBolger/Billy), das seinerseits auf
+Bobby / Tiny Assistant aus der Rebble- und Pebble-Community aufbaut.
 
-## What Billy Does
+Die App ist eine einzelne PBW und läuft auf **Android und iOS** komplett in PebbleKit JS in der
+Pebble-App – ohne Companion-App und ohne fremden Cloud-Dienst.
 
-- Answers natural-language questions from a Pebble watch using Gemini.
-- Preserves Bobby's watch-local features: alarms, timers, timeline reminders, settings, feedback, sample prompts, and weather cards.
-- Supports a companionless mode that runs through the Pebble phone app JavaScript runtime.
-- Supports an optional Android companion for richer Google account and phone tools.
-- Stores a local Billy profile/memory layer so user-approved facts can persist across prompts.
-- Displays Pebble-style cards for weather, maps, clarification choices, and transferred media.
-- Transfers selected photos and web images to the watch instead of only describing them.
-- Uses brief smartwatch-focused responses instead of long desktop-chat output.
+## Was Benny kann
 
-## Runtime Modes
+- freie Fragen kurz und uhrtauglich beantworten
+- Wecker setzen, auflisten, löschen
+- Timer setzen, auflisten, löschen
+- Erinnerungen als Timeline-Pins setzen, auflisten, löschen
+- Uhr-Einstellungen per Sprache ändern (Einheiten, Antwortsprache, Vibration, Quick Launch,
+  Bestätigung des Diktats)
+- Wetter mit Wetterkarte (Open-Meteo)
+- Rückfragen mit Auswahl-Picker auf der Uhr
+- einfache Timer und Wecker („Timer 5 Minuten“, „Wecker um 6:45“) sofort und ohne Modell
+  (abschaltbar)
 
-Billy has three runtime options in Clay settings:
+## Einrichtung
 
-- `Automatic`: use the Android companion when it is available, otherwise use the companionless Gemini path.
-- `Companionless`: use only the Pebble phone app JavaScript runtime.
-- `Android companion`: require the Billy Companion app for all AI requests.
+1. **Server aufsetzen:** siehe [`server/README.md`](server/README.md) – llama-server,
+   Cloudflare Tunnel, Access-Policy mit Service Token und `server/smoke-test.sh` zum Prüfen.
+2. **PBW bauen und installieren** (siehe unten) oder das PBW-Artefakt aus GitHub Actions nehmen.
+3. **Einstellungen** in der Pebble-App → Benny ausfüllen:
+   - *Server URL* – z. B. `https://llm.example.ch` (ohne Pfad)
+   - *Cloudflare Access Client ID* und *Client Secret*
+   - *Model* – Standard `qwen2.5-14b-instruct`
+   - *Request timeout* – 10–90 s, Standard 45 s
+   - Sprache, Einheiten und Standortfreigabe nach Wunsch
 
-The companionless path is important because Billy should still be useful as a single PBW install. The Android companion is the enhanced mode for private data, faster phone-side execution, media handling, Google APIs, and maps.
+Ohne konfigurierten Server zeigt die Uhr „Server in den Einstellungen konfigurieren“; einfache
+Timer und Wecker funktionieren trotzdem.
 
-## Bring Your Own Keys
+### Datenschutz
 
-Billy does not ship with the developer's API keys. Each user supplies their own credentials.
+- Die Service-Token-Werte bleiben in der Pebble-App auf dem Handy. Sie werden nur als
+  HTTP-Header an deinen Server geschickt, nie in URLs, Logs oder per AppMessage an die Uhr.
+- Anfragen gehen ausschliesslich an deinen Server, Wetterdaten an Open-Meteo, Ortsnamen an
+  OpenStreetMap Nominatim, Erinnerungs-Pins an die Pebble-Timeline.
+- Mit Standortfreigabe werden die Koordinaten als Kontext an deinen Server geschickt.
 
-Gemini API key:
+## Einschränkungen
 
-- Used for model calls to `generativelanguage.googleapis.com`.
-- Created by the user in Google AI Studio.
-- Stored locally by the Pebble phone app and/or Billy Companion.
-- Paid for by the user's own Google account or billing setup.
+- Das Diktat läuft über die Pebble-App auf dem Handy, nicht über deinen Server.
+- Höchstens **8 Wecker und Timer** gleichzeitig (Grenze der Pebble-Wakeup-API).
+- Erinnerungen kurz in der Zukunft können wegen der Timeline-Synchronisierung verspätet
+  ankommen; Benny weist darauf hin. Erinnerungen brauchen einen Timeline-Token der Pebble-App;
+  fehlt er, meldet Benny das. Ob der Pin danach beim Timeline-Dienst ankommt, prüft Benny nicht.
+- Keine Websuche: Das Modell kennt nur seinen Trainingsstand.
+- Cloudflare bricht Anfragen nach 100 Sekunden ab; deshalb maximal 90 s Timeout.
 
-Optional Google Maps Platform API key:
+## Entwicklung
 
-- Used by Billy Companion for richer Places, Routes, Geocoding, Time Zone, and Static Maps features.
-- Stored locally on the phone.
-- Should be restricted to the Maps APIs Billy uses.
-
-Google OAuth:
-
-- Used by Billy Companion for user-approved Google account access.
-- Grants Calendar, Tasks, Gmail, Drive, Docs, Sheets, Slides, Forms, Contacts, and bounded Google Photos API access where Google permits it.
-- Identifies the app by Android package name and signing certificate SHA-1.
-- Does not pay for Gemini model usage and does not replace the Gemini API key.
-
-Billy profile/memory:
-
-- Stored locally on the user's phone.
-- Can be bootstrapped from Google OAuth identity/profile data.
-- Can be bootstrapped from a reviewed Billy Profile Pack generated with
-  `docs/BILLY_PROFILE_PACK_TEMPLATE.md`.
-- Billy Companion can import a filled Markdown Profile Pack, index the facts by
-  topic, and retrieve relevant slices per request.
-- Can be edited through Billy Companion or explicit watch requests such as "remember that my dog is named Scout."
-- Is included as compact prompt context for Billy requests.
-- Does not inherit consumer Gemini app memories, Gemini app chat history, or Gemini Connected Apps context.
-
-## Optional Android Companion
-
-The Android companion lives in `companion-android/`.
-
-It can:
-
-- receive watch prompts through PebbleKit,
-- verify the user's Gemini API key,
-- request Google account consent on device,
-- load basic Google profile information into Billy's local profile store,
-- remember or forget explicit user-approved facts for future Billy prompts,
-- read and create Google Calendar events,
-- read and manage Google Tasks,
-- draft and send Gmail with confirmation,
-- search Drive metadata and work with Docs, Sheets, Slides, and Forms APIs,
-- use Google Photos Picker and limited Photos Library API paths,
-- read Android local photos when granted permission,
-- render images for watch transfer,
-- call Google Maps Platform APIs when the user supplies a Maps key,
-- launch Android navigation intents from watch map flows.
-
-The companion does not run a local server. It is an Android app that listens for Billy watch requests when Android allows it to run.
-
-## Known Google API Limits
-
-Google Keep is not available for normal personal OAuth access in the same way Calendar, Gmail, Tasks, Drive, Docs, Sheets, and Slides are. Billy reports that restriction instead of pretending to create a Keep note somewhere else.
-
-Google Photos has public API limits. The Picker API can retrieve media the user explicitly selects. Current Photos Library API access does not provide the same full-library semantic search that the official Google Photos or Gemini apps can use.
-
-## Building The Pebble App
-
-From `app/` with the Pebble SDK installed:
+PebbleKit JS ist ES5: kein `let`/`const`, keine Arrow-Functions, kein `fetch`, keine Promises.
+Ein Test erzwingt das.
 
 ```sh
-pebble build
+cd app
+npm test          # Node-Unit-Tests, keine Abhängigkeiten
+pebble build      # schreibt app/build/app.pbw
 ```
 
-The PBW is written to:
+`pebble build` braucht das Pebble SDK, z. B. `pip install pebble-tool` und
+`pebble sdk install latest`. Die CI (`.github/workflows/build-pbw.yaml`) führt Tests und Build aus.
 
-```text
-app/build/app.pbw
-```
+### Emulator
 
-Billy currently targets Core Time 2 / Emery-class hardware so media and UI behavior do not have to be limited to older low-resolution Pebble targets.
-
-## Building The Android Companion
-
-From `companion-android/`:
+Im Emulator spielt Benny standardmässig aufgezeichnete Antworten ab. Um gegen den echten Server
+zu testen:
 
 ```sh
-./gradlew assembleDebug
+pebble install --emulator emery
+pebble emu-app-config --emulator emery
 ```
 
-On Windows:
+Auf der Einstellungsseite Server und Token eintragen und unter *Development* „Emulator: use the
+real server“ einschalten. Die Werte landen nur im lokalen Speicher des Emulators, nicht im
+Repository.
 
-```powershell
-.\gradlew.bat assembleDebug
-```
+### Aufbau
 
-The debug APK is written to:
-
-```text
-companion-android/app/build/outputs/apk/debug/app-debug.apk
-```
-
-For distribution, use a properly signed release build or Play Store release, then add the release or Play App Signing SHA-1 to the Google OAuth client configuration.
-
-## User Setup
-
-See `docs/USER_SETUP.md` for the current setup notes covering:
-
-- Gemini API keys,
-- Google OAuth clients and scopes,
-- Google API enablement,
-- optional Google Maps Platform keys,
-- credential separation so users pay for their own Gemini and Maps usage.
-- the Billy Profile Pack template for importing reviewed personal context.
-
-## Project Status
-
-Billy 0.1 is the first public release. The main architecture is in place: one PBW, optional Android companion, no helper server, user-owned API keys, and Pebble-native cards/media. Google API coverage is still actively being hardened.
+- `app/src/c/` – Uhr-App (Diktat, Gespräch, Wecker/Timer über die Wakeup-API, Menüs)
+- `app/src/pkjs/agent/` – LLM-Client, Agent-Loop, Prompt, Tools, Validierung, Fast-Path
+- `app/src/pkjs/actions/` – führt Wecker/Timer/Erinnerungen/Einstellungen auf der Uhr aus
+- `app/test/` – Unit-Tests
+- `server/` – Server-Doku und Smoke-Test
 
 ## Credits
 
-Billy is forked from Bobby / Tiny Assistant by the Rebble and Pebble developer community.
+Benny: Achi.
 
-Developer: Thomas Bolger.
+Benny ist ein Fork von Billy und Bobby / Tiny Assistant aus der Rebble- und Pebble-Community.
+Billy-Entwickler: Thomas Bolger. Grafiken und Icons: Sarah Bolger und Katherine Berry.
+Die ursprünglichen Bobby-Credits und die Apache-2.0-Lizenzierung bleiben erhalten.
 
-Artwork and iconography: Sarah Bolger and Katherine Berry.
+## Lizenz
 
-Original Bobby credits and Apache 2.0 licensing are preserved where applicable.
+Apache 2.0, siehe `LICENSE`.
 
-## License
+## Hinweis
 
-Apache 2.0; see `LICENSE` for details.
-
-## Disclaimer
-
-Billy is not an official Google, Pebble, Core Devices, or Rebble product. Google API availability, scopes, pricing, quotas, and OAuth requirements are controlled by Google and can change independently of Billy.
+Benny ist kein offizielles Produkt von Pebble, Core Devices, Rebble, Cloudflare oder den
+Modell-Anbietern.
