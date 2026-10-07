@@ -17,37 +17,84 @@
 var actions = require('../actions');
 
 function schema(properties, required) {
-    var result = {
+    return {
         type: 'object',
-        properties: properties
+        properties: properties,
+        required: required || []
     };
-    if (required && required.length > 0) {
-        result.required = required;
-    }
-    return result;
 }
 
-function nullableString(description) {
+function stringSchema(description) {
     return {
         type: 'string',
         description: description
     };
 }
 
-function nullableInteger(description) {
+function integerSchema(description) {
     return {
         type: 'integer',
-        description: description,
-        format: 'int32'
+        description: description
     };
 }
 
-function nullableBoolean(description) {
+function booleanSchema(description) {
     return {
         type: 'boolean',
         description: description
     };
 }
+
+function declare(name, description, parameters) {
+    return {
+        type: 'function',
+        'function': {
+            name: name,
+            description: description,
+            parameters: parameters
+        }
+    };
+}
+
+var ISO_EXAMPLE = "ISO 8601 with the local UTC offset, e.g. '2026-10-08T07:00:00+02:00'";
+
+exports.getDeclarations = function() {
+    return [
+        declare('set_alarm', 'Set an alarm on the watch for a clock time.', schema({
+            time: stringSchema('Alarm time, ' + ISO_EXAMPLE + '. Must be in the future.'),
+            name: stringSchema('Only if the user explicitly named the alarm, in title case. Otherwise omit.')
+        }, ['time'])),
+        declare('get_alarms', 'List the alarms set on the watch.', schema({}, [])),
+        declare('delete_alarm', 'Delete one alarm. Call get_alarms first and pass the exact time it returned.', schema({
+            time: stringSchema('Time of the alarm to delete, ' + ISO_EXAMPLE + '.')
+        }, ['time'])),
+        declare('set_timer', 'Start a countdown timer on the watch.', schema({
+            duration_seconds: integerSchema('Timer length in seconds, e.g. 300 for 5 minutes. Between 1 and 604800.'),
+            name: stringSchema('Only if the user explicitly named the timer, in title case. Otherwise omit.')
+        }, ['duration_seconds'])),
+        declare('get_timers', 'List the running timers on the watch.', schema({}, [])),
+        declare('delete_timer', 'Delete one timer. Call get_timers first and pass the exact expirationTimeForDeletingAndWidgets it returned.', schema({
+            time: stringSchema('Expiration time of the timer to delete, ISO 8601.')
+        }, ['time'])),
+        declare('set_reminder', 'Create a timeline reminder. Give exactly one of time or delay_mins. If the user gives a time but no day, use the next time that clock time occurs.', schema({
+            time: stringSchema('Reminder time, ' + ISO_EXAMPLE + '.'),
+            delay_mins: integerSchema('Minutes from now, for requests like "in 20 minutes".'),
+            what: stringSchema('What to remind the user about, short.')
+        }, ['what'])),
+        declare('get_reminders', 'List the active reminders.', schema({}, [])),
+        declare('delete_reminder', 'Delete a reminder by id. Call get_reminders first to find the id.', schema({
+            id: stringSchema('The id returned by get_reminders.')
+        }, ['id'])),
+        declare('update_settings', 'Change watch settings. Pass only the settings the user asked to change.', schema({
+            unitSystem: stringSchema("One of 'imperial', 'metric', 'uk hybrid', 'both', 'auto'."),
+            responseLanguage: stringSchema("A language code such as 'en_US', 'de_DE', 'fr_FR', or 'auto'."),
+            alarmVibrationPattern: stringSchema("One of 'Reveille', 'Mario', 'Nudge Nudge', 'Jackhammer', 'Standard'."),
+            timerVibrationPattern: stringSchema("One of 'Reveille', 'Mario', 'Nudge Nudge', 'Jackhammer', 'Standard'."),
+            quickLaunchBehaviour: stringSchema("One of 'start conversation and time out', 'start conversation and stay open', 'open home screen'."),
+            confirmPrompts: booleanSchema('True to confirm dictated prompts before responding, false to respond immediately.')
+        }, []))
+    ];
+};
 
 function callAction(session, action, callback) {
     var ws = {
@@ -62,173 +109,12 @@ function callAction(session, action, callback) {
     actions.handleAction(session, ws, JSON.stringify(action));
 }
 
-exports.getDeclarations = function() {
-    return [
-        {
-            type: 'function',
-            name: 'set_alarm',
-            description: 'Set an alarm for a given time.',
-            parameters: schema({
-                time: nullableString("The time to schedule the alarm for in ISO 8601 format with the user's current local UTC offset, e.g. '2023-07-12T00:00:00+02:00'. Must always be in the future. Use the phone/watch timezone from the system instruction unless the user explicitly names another timezone."),
-                name: nullableString("Only if explicitly specified by the user, the name of the alarm. Use title case. If the user didn't ask to name the alarm, leave it empty.")
-            }, ['time'])
-        },
-        {
-            type: 'function',
-            name: 'get_alarms',
-            description: 'Get any existing alarms.',
-            parameters: schema({}, [])
-        },
-        {
-            type: 'function',
-            name: 'delete_alarm',
-            description: 'Delete a specific alarm by its expiration time.',
-            parameters: schema({
-                time: nullableString("The time of the alarm to delete in ISO 8601 format with the user's current local UTC offset, e.g. '2023-07-12T00:00:00+02:00'.")
-            }, ['time'])
-        },
-        {
-            type: 'function',
-            name: 'set_timer',
-            description: 'Set a timer for a given duration.',
-            parameters: schema({
-                duration_seconds: nullableInteger('The number of seconds to set the timer for.'),
-                name: nullableString("Only if explicitly specified by the user, the name of the timer. Use title case. If the user didn't ask to name the timer, leave it empty.")
-            }, ['duration_seconds'])
-        },
-        {
-            type: 'function',
-            name: 'get_timers',
-            description: 'Get any existing timers.',
-            parameters: schema({}, [])
-        },
-        {
-            type: 'function',
-            name: 'delete_timer',
-            description: 'Delete a specific timer by its expiration time.',
-            parameters: schema({
-                time: nullableString("The expiration time of the timer to delete in ISO 8601 format, e.g. '2023-07-12T00:00:00-07:00'.")
-            }, ['time'])
-        },
-        {
-            type: 'function',
-            name: 'set_reminder',
-            description: 'Set a reminder for the user to perform a task at a time. Either time or delay must be provided, but not both. If the user specifies a time but not a day, assume they meant the next time that time will happen.',
-            parameters: schema({
-                time: nullableString("The time to schedule the reminder for in ISO 8601 format with the user's current local UTC offset, e.g. '2023-07-12T00:00:00+02:00'. Always assume the phone/watch timezone unless otherwise specified."),
-                delay_mins: nullableInteger('The delay from now to when the reminder should be scheduled, in minutes.'),
-                what: nullableString('What to remind the user to do.')
-            }, ['what'])
-        },
-        {
-            type: 'function',
-            name: 'get_reminders',
-            description: 'Get a list of all active reminders.',
-            parameters: schema({}, [])
-        },
-        {
-            type: 'function',
-            name: 'delete_reminder',
-            description: 'Delete a specific reminder by its ID.',
-            parameters: schema({
-                id: nullableString('The ID of the reminder to delete. You must call get_reminders first to discover the ID of the correct reminder.')
-            }, ['id'])
-        },
-        {
-            type: 'function',
-            name: 'update_settings',
-            description: 'Change Billy watch settings such as units, response language, vibration pattern, quick launch behavior, or prompt confirmation.',
-            parameters: schema({
-                unitSystem: nullableString("Optional. One of: 'imperial', 'metric', 'uk hybrid', 'both', or 'auto'."),
-                responseLanguage: nullableString("Optional. Use a supported language code such as 'en_US', 'de_DE', 'fr_FR', or 'auto'."),
-                alarmVibrationPattern: nullableString("Optional. One of: 'Reveille', 'Mario', 'Nudge Nudge', 'Jackhammer', or 'Standard'."),
-                timerVibrationPattern: nullableString("Optional. One of: 'Reveille', 'Mario', 'Nudge Nudge', 'Jackhammer', or 'Standard'."),
-                quickLaunchBehaviour: nullableString("Optional. One of: 'start conversation and time out', 'start conversation and stay open', or 'open home screen'."),
-                confirmPrompts: nullableBoolean('Optional. True to confirm dictated prompts before responding, false to respond immediately.')
-            }, [])
-        }
-    ];
-}
-
-exports.shouldExpose = function(prompt) {
-    return /\b(timer|timers|alarm|alarms|remind|reminder|reminders|wake\s+me)\b/i.test(prompt) ||
-        /\b(cancel|delete|remove|list|show|check|get|create|add|make|schedule|start)\b.*\b(timer|timers|alarm|alarms|reminder|reminders)\b/i.test(prompt) ||
-        /\b(set|use|change|switch|enable|disable|turn)\b.*\b(unit|units|metric|imperial|language|vibration|vibrate|quick launch|confirm|transcript|transcripts)\b/i.test(prompt);
-}
-
-function normalizeArguments(call) {
-    var args = call.arguments || {};
-    if (typeof args === 'string') {
-        try {
-            return JSON.parse(args);
-        } catch (e) {
-            return {};
-        }
-    }
-    return args;
-}
-
-function getTimerDuration(args) {
-    var duration = parseInt(args.duration_seconds, 10) || 0;
-    duration += (parseInt(args.duration_minutes, 10) || 0) * 60;
-    duration += (parseInt(args.duration_hours, 10) || 0) * 3600;
-    return duration;
-}
-
-function executeSetAlarm(session, args, callback) {
-    if (!args.time) {
-        callback({error: 'Alarm time is required.'});
-        return;
-    }
-    session.handleMessage({data: 'fSetting an alarm'});
-    callAction(session, {
-        action: 'set_alarm',
-        isTimer: false,
-        time: args.time,
-        name: args.name || null,
-        cancel: false
-    }, callback);
-}
-
-function executeSetTimer(session, args, callback) {
-    var seconds = getTimerDuration(args);
-    if (seconds < 1) {
-        callback({error: 'Timer duration must be a positive number of seconds.'});
-        return;
-    }
-    session.handleMessage({data: 'fSetting a timer'});
-    callAction(session, {
-        action: 'set_alarm',
-        isTimer: true,
-        duration: seconds,
-        name: args.name || null,
-        cancel: false
-    }, callback);
-}
-
 function executeSetReminder(session, args, callback) {
-    if (!args.what) {
-        callback({error: 'Reminder text is required.'});
-        return;
-    }
-    if (!args.time && !args.delay_mins) {
-        callback({error: 'Either reminder time or delay_mins is required.'});
-        return;
-    }
-    if (args.time && args.delay_mins) {
-        callback({error: 'Only one of reminder time or delay_mins may be provided.'});
-        return;
-    }
+    session.handleMessage({data: 'fSetting a reminder'});
     var time = args.time;
     if (args.delay_mins) {
-        var delay = parseInt(args.delay_mins, 10);
-        if (isNaN(delay) || delay < 1) {
-            callback({error: 'Reminder delay_mins must be a positive number.'});
-            return;
-        }
-        time = new Date(Date.now() + delay * 60000).toISOString();
+        time = new Date(Date.now() + parseInt(args.delay_mins, 10) * 60000).toISOString();
     }
-    session.handleMessage({data: 'fSetting a reminder'});
     callAction(session, {
         action: 'set_reminder',
         what: args.what,
@@ -236,63 +122,54 @@ function executeSetReminder(session, args, callback) {
     }, callback);
 }
 
-exports.execute = function(session, call, callback) {
-    var args = normalizeArguments(call);
-    switch (call.name) {
+exports.execute = function(session, name, args, callback) {
+    switch (name) {
     case 'set_alarm':
-        executeSetAlarm(session, args, callback);
-        return;
+        session.handleMessage({data: 'fSetting an alarm'});
+        callAction(session, {action: 'set_alarm', isTimer: false, time: args.time, name: args.name, cancel: false}, callback);
+        return true;
     case 'get_alarms':
-    case 'get_alarm':
         session.handleMessage({data: 'fChecking your alarms'});
         callAction(session, {action: 'get_alarm', isTimer: false}, callback);
-        return;
+        return true;
     case 'delete_alarm':
-        if (!args.time) {
-            callback({error: 'Alarm time is required.'});
-            return;
-        }
         session.handleMessage({data: 'fDeleting an alarm'});
         callAction(session, {action: 'set_alarm', isTimer: false, time: args.time, cancel: true}, callback);
-        return;
+        return true;
     case 'set_timer':
-        executeSetTimer(session, args, callback);
-        return;
+        session.handleMessage({data: 'fSetting a timer'});
+        callAction(session, {action: 'set_alarm', isTimer: true, duration: args.duration_seconds, name: args.name, cancel: false}, callback);
+        return true;
     case 'get_timers':
-    case 'get_timer':
         session.handleMessage({data: 'fChecking your timers'});
         callAction(session, {action: 'get_alarm', isTimer: true}, callback);
-        return;
+        return true;
     case 'delete_timer':
-        if (!args.time) {
-            callback({error: 'Timer expiration time is required.'});
-            return;
-        }
         session.handleMessage({data: 'fDeleting a timer'});
         callAction(session, {action: 'set_alarm', isTimer: true, time: args.time, cancel: true}, callback);
-        return;
+        return true;
     case 'set_reminder':
         executeSetReminder(session, args, callback);
-        return;
+        return true;
     case 'get_reminders':
         session.handleMessage({data: 'fChecking your reminders'});
         callAction(session, {action: 'get_reminders'}, callback);
-        return;
+        return true;
     case 'delete_reminder':
-        if (!args.id) {
-            callback({error: 'Reminder ID is required. Call get_reminders first to find it.'});
-            return;
-        }
         session.handleMessage({data: 'fDeleting a reminder'});
         callAction(session, {action: 'delete_reminder', id: args.id}, callback);
-        return;
+        return true;
     case 'update_settings':
         session.handleMessage({data: 'fUpdating settings'});
-        args.action = 'update_settings';
-        callAction(session, args, callback);
-        return;
+        var action = {action: 'update_settings'};
+        for (var key in args) {
+            if (args.hasOwnProperty(key)) {
+                action[key] = args[key];
+            }
+        }
+        callAction(session, action, callback);
+        return true;
     default:
-        callback({error: 'Unknown local tool: ' + call.name});
-        return;
+        return false;
     }
-}
+};

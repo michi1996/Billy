@@ -198,10 +198,14 @@ function setup() {
     };
     console.error = console.log;
     env = {clock: clock, pebble: pebble, storage: storage, logs: logs, saved: saved};
+    pkjs('agent/clock').now = function() {
+        return Date.now();
+    };
     return env;
 }
 function teardown() {
     const saved = env.saved;
+    global.Date = RealDate;
     global.setTimeout = saved.setTimeout;
     global.clearTimeout = saved.clearTimeout;
     global.Pebble = saved.Pebble;
@@ -209,6 +213,71 @@ function teardown() {
     console.log = saved.log;
     console.error = saved.error;
     env = null;
+}
+
+const RealDate = Date;
+
+// Pins "now" everywhere: Date.now(), new Date() and the agent clock. Restored after each test.
+function setNow(ms) {
+    function FakeDate() {
+        if (!(this instanceof FakeDate)) {
+            return new RealDate(ms).toString();
+        }
+        if (arguments.length === 0) {
+            return new RealDate(ms);
+        }
+        return new (Function.prototype.bind.apply(RealDate, [null].concat(Array.prototype.slice.call(arguments))))();
+    }
+    FakeDate.prototype = RealDate.prototype;
+    FakeDate.now = function() {
+        return ms;
+    };
+    FakeDate.UTC = RealDate.UTC;
+    FakeDate.parse = RealDate.parse;
+    global.Date = FakeDate;
+    pkjs('agent/clock').now = function() {
+        return ms;
+    };
+}
+
+// LLM client double: replays parsed responses (or Errors) and records every request.
+function ScriptedClient(responses) {
+    this.responses = responses.slice();
+    this.requests = [];
+}
+ScriptedClient.prototype.complete = function(request, callback) {
+    this.requests.push(JSON.parse(JSON.stringify(request)));
+    let next = this.responses.shift();
+    if (typeof next === 'function') {
+        next = next(request);
+    }
+    if (next === undefined) {
+        throw new Error('ScriptedClient ran out of responses');
+    }
+    if (next instanceof Error) {
+        callback(next);
+    } else {
+        callback(null, next);
+    }
+};
+
+function parsed(raw) {
+    return pkjs('agent/llm_client').parseResponse(raw);
+}
+
+// Temporarily replaces a global (some, like navigator, are getters in recent Node versions).
+function withGlobal(name, value, fn) {
+    const original = Object.getOwnPropertyDescriptor(global, name);
+    Object.defineProperty(global, name, {value: value, configurable: true, writable: true});
+    try {
+        return fn();
+    } finally {
+        if (original) {
+            Object.defineProperty(global, name, original);
+        } else {
+            delete global[name];
+        }
+    }
 }
 
 function settings(values) {
@@ -254,5 +323,9 @@ module.exports = {
     chatResponse: chatResponse,
     toolCallResponse: toolCallResponse,
     settings: settings,
+    setNow: setNow,
+    withGlobal: withGlobal,
+    ScriptedClient: ScriptedClient,
+    parsed: parsed,
     messageKeys: messageKeys
 };

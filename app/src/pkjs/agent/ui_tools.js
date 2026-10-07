@@ -6,7 +6,6 @@
  */
 
 var messageKeys = require('message_keys');
-var weatherTool = require('./weather_tool');
 
 function schema(properties, required) {
     return {
@@ -32,53 +31,31 @@ function arraySchema(description) {
 }
 
 exports.getDeclarations = function() {
-    var optionMax = getPickerOptionMaxChars();
+    var optionMax = exports.getPickerOptionMaxChars();
     return [{
         type: 'function',
-        name: 'ask_clarifying_question',
-        description: 'Ask the user one short clarifying question with 2-4 selectable options when guessing would risk doing the wrong thing. Each option label must be ' + optionMax + ' characters or fewer.',
-        parameters: schema({
-            question: stringSchema('Short watch-sized question.'),
-            options: arraySchema('Two to four short answer option labels, each ' + optionMax + ' characters or fewer.'),
-            context: stringSchema('The original user request or enough hidden context to continue after the user chooses.')
-        }, ['question', 'options'])
-    }].concat(weatherTool.getDeclarations());
+        'function': {
+            name: 'ask_clarifying_question',
+            description: 'Ask the user one short question with 2-4 options shown as a picker on the watch, when guessing would risk doing the wrong thing. Each option must be ' + optionMax + ' characters or fewer.',
+            parameters: schema({
+                question: stringSchema('Short watch-sized question.'),
+                options: arraySchema('Two to four short answer options, each ' + optionMax + ' characters or fewer.'),
+                context: stringSchema('The original request, so it can be continued after the user chooses.')
+            }, ['question', 'options'])
+        }
+    }];
 };
 
-exports.execute = function(session, call, callback) {
-    if (weatherTool.execute(session, call, callback)) {
-        return true;
-    }
-    if (call.name !== 'ask_clarifying_question') {
-        return false;
-    }
-    var args = call.arguments || {};
-    if (typeof args === 'string') {
-        try {
-            args = JSON.parse(args);
-        } catch (e) {
-            args = {};
-        }
-    }
-    var options = Array.isArray(args.options) ? args.options.slice(0, 4) : [];
-    options = options.filter(function(option) {
-        return String(option || '').trim().length > 0;
-    }).map(function(option) {
-        return shortPickerLabel(option, getPickerOptionMaxChars());
-    });
-    if (options.length < 2) {
-        options = ['Yes', 'No'];
-    }
+exports.execute = function(session, args, callback) {
     exports.sendClarification(session, {
         question: args.question,
         context: args.context,
-        options: options
+        options: args.options
     });
     callback({
         stop_for_user: true,
         summary: 'Asked the user a clarifying question.'
     });
-    return true;
 };
 
 exports.sendClarification = function(session, card) {
@@ -87,7 +64,7 @@ exports.sendClarification = function(session, card) {
     options = options.filter(function(option) {
         return String(option || '').trim().length > 0;
     }).map(function(option) {
-        return shortPickerLabel(option, getPickerOptionMaxChars());
+        return shortPickerLabel(option, exports.getPickerOptionMaxChars());
     });
     if (options.length < 2) {
         options = ['Yes', 'No'];
@@ -105,7 +82,7 @@ exports.sendClarification = function(session, card) {
     session.enqueue({CHAT_DONE: true});
 };
 
-function getPickerOptionMaxChars() {
+exports.getPickerOptionMaxChars = function() {
     var platform = '';
     try {
         platform = Pebble && Pebble.platform ? Pebble.platform : '';
@@ -119,7 +96,7 @@ function getPickerOptionMaxChars() {
         return 20;
     }
     return 18;
-}
+};
 
 function shortPickerLabel(option, maxChars) {
     var label = String(option || '').split('|')[0].trim();

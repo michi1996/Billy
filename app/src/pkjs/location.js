@@ -14,15 +14,12 @@
  * limitations under the License.
  */
 
-var config = require('./config');
-
 var cachedLon = undefined;
 var cachedLat = undefined;
 var cachedAccuracy = undefined;
 var cachedUpdatedAt = undefined;
 
 var MAX_PROMPT_LOCATION_AGE_MS = 30 * 60 * 1000;
-var MAX_PROMPT_ACCURACY_METERS = 25000;
 
 exports.update = function() {
     // start with whatever we knew before, if anything.
@@ -65,22 +62,4 @@ exports.isReady = function() {
 
 exports.getPos = function() {
     return {lon: cachedLon, lat: cachedLat, accuracy: cachedAccuracy, updatedAt: cachedUpdatedAt};
-}
-
-exports.getPromptContextSentence = function() {
-    if (!config.isLocationEnabled() || !exports.isReady()) {
-        return '';
-    }
-    if (cachedUpdatedAt && Date.now() - cachedUpdatedAt > MAX_PROMPT_LOCATION_AGE_MS) {
-        return '';
-    }
-    if (cachedAccuracy && cachedAccuracy > MAX_PROMPT_ACCURACY_METERS) {
-        return '';
-    }
-
-    var ageText = cachedUpdatedAt ? Math.round((Date.now() - cachedUpdatedAt) / 60000) + ' minutes ago' : 'recently';
-    var accuracyText = cachedAccuracy ? 'accuracy about ' + Math.round(cachedAccuracy) + ' meters' : 'accuracy unknown';
-    return 'The user has granted location context. Current phone GPS location is latitude ' +
-        cachedLat.toFixed(5) + ', longitude ' + cachedLon.toFixed(5) + ' (' + accuracyText +
-        ', updated ' + ageText + '). For weather and local questions, use these coordinates instead of inferring location from IP address, account home, or network region.';
 }

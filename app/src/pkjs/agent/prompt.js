@@ -16,67 +16,104 @@
 
 var config = require('../config');
 var location = require('../location');
+var timeFormat = require('./time_format');
+var uiTools = require('./ui_tools');
 
-function getLocalTimeSentence() {
-    var now = new Date();
-    var timezone = 'unknown';
-    try {
-        if (Intl && Intl.DateTimeFormat) {
-            timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || timezone;
-        }
-    } catch (e) {
-        timezone = 'unknown';
+// The system prompt must be byte-identical between requests (as long as the settings don't
+// change) so llama-server can reuse its prompt cache. Anything that changes per request, such
+// as the time or the location, goes into a context line at the start of the new user message.
+
+var LANGUAGE_NAMES = {
+    af_ZA: 'Afrikaans', id_ID: 'Indonesian', ms_MY: 'Malay', cs_CZ: 'Czech', da_DK: 'Danish',
+    de_DE: 'German', en_US: 'English', es_ES: 'Spanish', fil_PH: 'Filipino', fr_FR: 'French',
+    gl_ES: 'Galician', hr_HR: 'Croatian', is_IS: 'Icelandic', it_IT: 'Italian', sw_TZ: 'Swahili',
+    lv_LV: 'Latvian', lt_LT: 'Lithuanian', hu_HU: 'Hungarian', nl_NL: 'Dutch', no_NO: 'Norwegian',
+    pl_PL: 'Polish', pt_PT: 'Portuguese', ro_RO: 'Romanian', ru_RU: 'Russian', sk_SK: 'Slovak',
+    sl_SI: 'Slovenian', fi_FI: 'Finnish', sv_SE: 'Swedish', tr_TR: 'Turkish', 'zu-ZA': 'Zulu', zu_ZA: 'Zulu'
+};
+
+var UNIT_DESCRIPTIONS = {
+    metric: 'metric units',
+    imperial: 'imperial units',
+    uk: 'UK units (miles and mph, otherwise metric)',
+    both: 'both metric and imperial units'
+};
+
+var MAX_LOCATION_AGE_MS = 30 * 60 * 1000;
+var MAX_LOCATION_ACCURACY_METERS = 25000;
+
+exports.CONTEXT_PREFIX = '[Context] ';
+
+function languageInstruction() {
+    var code = String(config.getSetting('LANGUAGE_CODE', '') || '');
+    if (!code || code === 'automatic') {
+        return 'Reply in the language of the user\'s message.';
     }
-    var offsetMinutes = -now.getTimezoneOffset();
-    var sign = offsetMinutes >= 0 ? '+' : '-';
-    var abs = Math.abs(offsetMinutes);
-    var offset = sign + ('0' + Math.floor(abs / 60)).slice(-2) + ':' + ('0' + (abs % 60)).slice(-2);
-    return 'The phone/watch local time is ' + now.toString() + '. The local IANA timezone is ' + timezone + ' and the current UTC offset is ' + offset + '. For alarms, timers, and reminders, interpret relative times like tomorrow using this local watch timezone unless the user explicitly names another timezone. ';
+    var name = LANGUAGE_NAMES[code];
+    return 'Always reply in ' + (name ? name + ' (' + code + ')' : 'the language with code ' + code) + '.';
 }
 
-function getPickerOptionMaxChars() {
-    var platform = '';
-    try {
-        platform = Pebble && Pebble.platform ? Pebble.platform : '';
-    } catch (e) {
-        platform = '';
-    }
-    if (platform === 'emery') {
-        return 28;
-    }
-    if (platform === 'basalt') {
-        return 20;
-    }
-    return 18;
+function unitInstruction() {
+    var units = UNIT_DESCRIPTIONS[String(config.getSetting('UNIT_PREFERENCE', '') || '')];
+    return units ? 'Use ' + units + '.' : 'Use the units customary at the user\'s location.';
 }
 
-exports.buildSystemInstruction = function() {
-    var language = config.getSetting('LANGUAGE_CODE', 'automatic');
-    var units = config.getSetting('UNIT_PREFERENCE', '');
-    var pickerOptionMax = getPickerOptionMaxChars();
-    var parts = [
-        'You are Benny, an assistant running from a Pebble smartwatch.',
-        'The user prompt is transcribed from watch voice input, so silently correct obvious speech recognition errors.',
-        'Only watch-facing final replies are displayed on a very small screen. Be concise but useful for those replies: usually 2-4 short watch lines. Avoid vague one-line answers. Use Pebble-safe formatting only for watch-facing final text: short lines, line breaks, and "- " bullets. Do not use markdown asterisks, code fences, tables, headings, citations, or other markdown in watch-facing final text unless asked.',
-        'You have no web search. If a question needs current information you do not have, say so briefly.',
-        'Never claim to set an alarm, timer, reminder, or setting unless a local tool actually completed it.',
-        'When the request is ambiguous and a wrong guess could create, change, or delete something incorrectly, call ask_clarifying_question with 2-4 short options instead of guessing. Picker option labels must be ' + pickerOptionMax + ' characters or fewer. Ask only one question at a time. Prefer clarification for a missing reminder date or which alarm, timer, or reminder the user means. Do not ask if a safe default is obvious.',
-        'For weather, temperature, wind, umbrella, or forecast requests, call get_weather when it is available. The weather card already shows current temperature, feels-like, icon, and condition; put forecast or practical guidance in the short text after it instead of repeating the same current numbers.',
-        'For watch actions, be resilient to dictation errors. If a phrase sounds like a request to set, create, add, make, start, get, or schedule a reminder, alarm, or timer, prefer the available watch tool.',
-        'If the user says "get a reminder" followed by a task or time, interpret it as "set a reminder" unless they clearly ask to list existing reminders.',
-        getLocalTimeSentence()
-    ];
-    var locationContext = location.getPromptContextSentence();
-    if (locationContext) {
-        parts.push(locationContext);
+exports.buildSystemPrompt = function() {
+    return [
+        'You are Benny, a voice assistant on a Pebble smartwatch.',
+        'The user dictates. Silently correct obvious speech recognition errors.',
+        'Replies are shown on a tiny screen: 2-4 short lines of plain text. No markdown, no asterisks, headings, tables or code. Use "- " for lists.',
+        'Use the tools for alarms, timers, reminders, watch settings and weather. Never say that something was set, changed or deleted unless a tool result in this conversation says "status": "ok". If a tool returns an error, tell the user briefly, using its user_message if there is one.',
+        'Every user message starts with a ' + exports.CONTEXT_PREFIX.replace(/\s+$/, '') + ' line with the current local time, date, weekday, timezone and location. Use it for all date and time calculations. Do not mention it unless asked.',
+        'Tool times are ISO 8601 with the local UTC offset, e.g. 2026-10-08T07:00:00+02:00. "Tomorrow", "tonight" and weekdays are relative to the local date in the context line. A clock time without a day means the next time it occurs.',
+        'Timers take duration_seconds as a whole number. Reminders need either time or delay_mins, never both.',
+        'To delete an alarm or timer, first call get_alarms or get_timers and use the exact time returned. To delete a reminder, first call get_reminders and use its id.',
+        'If the request is ambiguous and a wrong guess would set or delete the wrong thing, call ask_clarifying_question with 2-4 options of at most ' + uiTools.getPickerOptionMaxChars() + ' characters. Do not ask when a sensible default exists.',
+        'A user message starting with BILLY_CLARIFICATION_ANSWER contains your earlier question and the user\'s choice: continue the original request.',
+        'For weather, call get_weather. The watch card already shows the current temperature and condition, so only add the forecast or practical advice.',
+        'You cannot browse the web. If a question needs current information you do not have, say so briefly.',
+        languageInstruction(),
+        unitInstruction()
+    ].join('\n');
+};
+
+function locationText(nowMs) {
+    if (!config.isLocationEnabled() || !location.isReady()) {
+        return 'unknown';
     }
-    if (language && language !== 'automatic') {
-        parts.push('Respond using language code ' + language + '.');
-    } else {
-        parts.push('Respond in the language the user is using unless they ask otherwise.');
+    var pos = location.getPos();
+    if (pos.updatedAt && nowMs - pos.updatedAt > MAX_LOCATION_AGE_MS) {
+        return 'unknown';
     }
-    if (units) {
-        parts.push('Use the user unit preference: ' + units + '.');
+    if (pos.accuracy && pos.accuracy > MAX_LOCATION_ACCURACY_METERS) {
+        return 'unknown';
     }
-    return parts.join(' ');
+    var text = pos.lat.toFixed(4) + ',' + pos.lon.toFixed(4);
+    if (pos.accuracy) {
+        text += ' (±' + Math.round(pos.accuracy) + ' m)';
+    }
+    return text;
 }
+
+exports.buildContextLine = function(nowMs) {
+    var offset = timeFormat.offsetMinutesAt(nowMs);
+    var now = new Date(nowMs);
+    var nowText = timeFormat.formatLocalDate(nowMs) + 'T' + timeFormat.pad2(now.getHours()) + ':' +
+        timeFormat.pad2(now.getMinutes()) + timeFormat.formatOffset(offset);
+    var tomorrowMs = timeFormat.addLocalDays(new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12).getTime(), 1);
+    var tomorrowOffset = timeFormat.offsetMinutesAt(tomorrowMs);
+    var tomorrowText = timeFormat.formatLocalDate(tomorrowMs) + ' ' + timeFormat.weekdayName(tomorrowMs);
+    if (tomorrowOffset !== offset) {
+        tomorrowText += ' (UTC' + timeFormat.formatOffset(tomorrowOffset) + ')';
+    }
+    var zone = timeFormat.timeZoneName();
+    return exports.CONTEXT_PREFIX +
+        'now=' + nowText + ' ' + timeFormat.weekdayName(nowMs) +
+        '; tomorrow=' + tomorrowText +
+        '; timezone=' + (zone ? zone + ' ' : '') + 'UTC' + timeFormat.formatOffset(offset) +
+        '; location=' + locationText(nowMs);
+};
+
+exports.buildUserMessage = function(prompt, nowMs) {
+    return exports.buildContextLine(nowMs) + '\n' + prompt;
+};

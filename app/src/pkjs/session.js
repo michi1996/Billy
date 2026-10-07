@@ -17,7 +17,7 @@
 var LOGGING_ENABLED = false;
 
 var messageQueue = require('./lib/message_queue').Queue;
-var CompanionlessRuntime = require('./agent/companionless').CompanionlessRuntime;
+var Runtime = require('./agent/runtime').Runtime;
 
 function Session(prompt, threadId) {
     this.prompt = prompt;
@@ -29,7 +29,7 @@ Session.prototype.run = function() {
     if (LOGGING_ENABLED) {
         messageQueue.startLogging();
     }
-    new CompanionlessRuntime(this).run();
+    new Runtime(this).run();
 }
 
 // Messages use a one-letter prefix, inherited from the Bobby websocket protocol:

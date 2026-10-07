@@ -131,12 +131,3 @@ exports.isFastPathEnabled = function() {
 exports.isEmulatorRealServerEnabled = function() {
     return readBoolean('EMULATOR_REAL_SERVER', false);
 }
-
-// Kept until the Gemini client is replaced in the next step.
-exports.getGeminiApiKey = function() {
-    return '';
-}
-
-exports.getGeminiModel = function() {
-    return '';
-}
