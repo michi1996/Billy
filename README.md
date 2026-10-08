@@ -15,6 +15,8 @@ Pebble app – no companion app and no third-party cloud service.
 - answer questions briefly, sized for the watch
 - set, list and delete alarms
 - set, list and delete timers
+- show a live countdown for the next timer (and the time of the next alarm) under Buddy in the
+  app list, updated by the watch itself
 - set, list and delete reminders as timeline pins
 - change watch settings by voice (units, response language, vibration, quick launch,
   dictation confirmation)

@@ -21,6 +21,7 @@
 #include "converse/conversation_manager.h"
 #include "image_manager/image_manager.h"
 #include "alarms/manager.h"
+#include "glance/glance.h"
 #include "version/version.h"
 #include "settings/settings.h"
 
@@ -51,6 +52,7 @@ static void prv_init(void) {
 }
 
 static void prv_deinit(void) {
+  glance_update();
   if (s_root_window) {
     root_window_destroy(s_root_window);
   }
