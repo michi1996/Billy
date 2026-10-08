@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// The one tool set Benny exposes. It is the same, in the same order, on every request so that
+// The one tool set Buddy exposes. It is the same, in the same order, on every request so that
 // llama-server can reuse its prompt cache.
 
 var clock = require('./clock');

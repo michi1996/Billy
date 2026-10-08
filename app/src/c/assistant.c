@@ -62,7 +62,7 @@ static void prv_deinit(void) {
 
 int main(void) {
   VersionInfo version_info = version_get_current();
-  BOBBY_LOG(APP_LOG_LEVEL_INFO, "Benny %d.%d", version_info.major, version_info.minor);
+  BOBBY_LOG(APP_LOG_LEVEL_INFO, "Buddy %d.%d", version_info.major, version_info.minor);
   prv_init();
   
   if (alarm_manager_maybe_alarm()) {

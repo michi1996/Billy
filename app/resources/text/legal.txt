@@ -1,13 +1,13 @@
 # Legal
 ## Language model
-Benny sends prompts from the Pebble phone app to the language model server configured in the app settings. Benny does not provide a hosted service. You are responsible for that server and its model license.
+Buddy sends prompts from the Pebble phone app to the language model server configured in the app settings. Buddy does not provide a hosted service. You are responsible for that server and its model license.
 ## Weather
 Weather data by Open-Meteo.com (CC BY 4.0).
 ## Geocoding
 Place names are looked up with OpenStreetMap Nominatim. Data (c) OpenStreetMap contributors, ODbL.
 ## License
-Benny is a fork of Billy and Bobby, licensed under the Apache License 2.0.
+Buddy is a fork of Billy and Bobby, licensed under the Apache License 2.0.
 ## Disclaimers
-Benny uses AI technology and may sometimes provide inaccurate or offensive content.
-Use discretion before relying on, publishing, or otherwise using content provided by Benny.
-Don't rely on Benny for medical, legal, financial, or other professional advice. Any content regarding those topics is provided for informational purposes only and is not a substitute for advice from a qualified professional. Content does not constitute medical treatment or diagnosis.
+Buddy uses AI technology and may sometimes provide inaccurate or offensive content.
+Use discretion before relying on, publishing, or otherwise using content provided by Buddy.
+Don't rely on Buddy for medical, legal, financial, or other professional advice. Any content regarding those topics is provided for informational purposes only and is not a substitute for advice from a qualified professional. Content does not constitute medical treatment or diagnosis.

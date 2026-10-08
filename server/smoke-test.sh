@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Smoke-Test für den Benny-LLM-Server (llama-server hinter Cloudflare Access).
+# Smoke-Test für den Buddy-LLM-Server (llama-server hinter Cloudflare Access).
 #
 # Benötigt: bash, curl (>= 7.55), python3.
 # Liest LLM_BASE_URL, CF_ACCESS_CLIENT_ID und CF_ACCESS_CLIENT_SECRET aus der Umgebung
@@ -75,7 +75,7 @@ seconds() {
 }
 
 tools='[{"type":"function","function":{"name":"set_timer","description":"Start a countdown timer on the watch.","parameters":{"type":"object","properties":{"duration_seconds":{"type":"integer","description":"Timer length in seconds, e.g. 300 for 5 minutes."},"name":{"type":"string","description":"Only if the user explicitly named the timer."}},"required":["duration_seconds"]}}}]'
-system='You are Benny, a voice assistant on a Pebble smartwatch. Use the tools for timers. Never claim something was set unless a tool result says "status": "ok". Reply in German, 1-2 short lines.'
+system='You are Buddy, a voice assistant on a Pebble smartwatch. Use the tools for timers. Never claim something was set unless a tool result says "status": "ok". Reply in German, 1-2 short lines.'
 
 echo "Server: $base"
 echo

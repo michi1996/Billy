@@ -1,5 +1,5 @@
 {
-  "name": "Benny",
+  "name": "Buddy",
   "author": "Achi",
   "version": "0.1",
   "keywords": [
@@ -14,7 +14,7 @@
     "pebble-events": "^1.2.0"
   },
   "pebble": {
-    "displayName": "Benny",
+    "displayName": "Buddy",
     "uuid": "8384d88e-7f83-48c2-a152-cb9bb8ee0fae",
     "sdkVersion": "3",
     "enableMultiJS": true,

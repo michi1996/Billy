@@ -1,7 +1,7 @@
 [
     {
         "type": "heading",
-        "defaultValue": "Benny",
+        "defaultValue": "Buddy",
         "size": 1
     },
     {
@@ -13,14 +13,14 @@
             },
             {
                 "type": "text",
-                "defaultValue": "Benny sends your prompts to your own llama-server (OpenAI-compatible API) behind Cloudflare Access. The values below are stored only in the Pebble phone app and are never sent to the watch."
+                "defaultValue": "Buddy sends your prompts to your own llama-server (OpenAI-compatible API) behind Cloudflare Access. The values below are stored only in the Pebble phone app and are never sent to the watch."
             },
             {
                 "type": "input",
                 "id": "LLM_BASE_URL",
                 "messageKey": "LLM_BASE_URL",
                 "label": "Server URL",
-                "description": "Base URL without a path, e.g. https://llm.example.ch. Benny appends /v1/chat/completions.",
+                "description": "Base URL without a path, e.g. https://llm.example.ch. Buddy appends /v1/chat/completions.",
                 "defaultValue": "",
                 "attributes": {
                     "type": "url",
@@ -102,7 +102,7 @@
                 "id": "languageCode",
                 "messageKey": "LANGUAGE_CODE",
                 "label": "Response language",
-                "description": "Controls the language of Benny's replies. Does not currently translate the rest of the UI. If 'automatic', Benny will attempt to respond in the same language the question was asked.",
+                "description": "Controls the language of Buddy's replies. Does not currently translate the rest of the UI. If 'automatic', Buddy will attempt to respond in the same language the question was asked.",
                 "defaultValue": "",
                 "options": [
                     {"label": "Automatic", "value": ""},
@@ -192,7 +192,7 @@
                 "type": "select",
                 "messageKey": "QUICK_LAUNCH_BEHAVIOUR",
                 "label": "Quick launch behaviour",
-                "description": "What to do when Benny is launched via Quick Launch. If 'start conversation' is selected, Benny will start listening immediately. If 'stay open' is chosen, Benny will quit after a minute of inactivity. If 'open home screen' is chosen, Benny will behave the same as if launched from the app launcher.",
+                "description": "What to do when Buddy is launched via Quick Launch. If 'start conversation' is selected, Buddy will start listening immediately. If 'stay open' is chosen, Buddy will quit after a minute of inactivity. If 'open home screen' is chosen, Buddy will behave the same as if launched from the app launcher.",
                 "defaultValue": "1",
                 "options": [
                     {"label": "Start conversation and time out", "value": "1"},
@@ -205,7 +205,7 @@
                 "messageKey": "CONFIRM_TRANSCRIPTS",
                 "defaultValue": false,
                 "label": "Confirm prompts before responding",
-                "description": "When enabled, after dictating to the watch, you'll always be asked to confirm your input before Benny takes action. When disabled, Benny will respond immediately to whatever was recognised."
+                "description": "When enabled, after dictating to the watch, you'll always be asked to confirm your input before Buddy takes action. When disabled, Buddy will respond immediately to whatever was recognised."
             }
         ]
     },
@@ -221,7 +221,7 @@
                 "messageKey": "LOCATION_ENABLED",
                 "defaultValue": true,
                 "label": "Allow location access",
-                "description": "Benny can use your location for local weather and to understand your local context. Coordinates are sent to your own server with your prompts."
+                "description": "Buddy can use your location for local weather and to understand your local context. Coordinates are sent to your own server with your prompts."
             }
         ]
     },

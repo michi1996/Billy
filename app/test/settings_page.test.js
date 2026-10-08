@@ -63,7 +63,7 @@ h.test('the config page never receives stored secrets', (env) => {
     assert.strictEqual(env.pebble.openedUrls.length, 1);
     const url = decodeURIComponent(env.pebble.openedUrls[0]);
     assert.ok(url.indexOf(SECRET) === -1 && url.indexOf(SECRET_ID) === -1, 'secret in config URL');
-    assert.strictEqual(clay.pageSettings.CF_ACCESS_CLIENT_SECRET, '__benny_unchanged__');
+    assert.strictEqual(clay.pageSettings.CF_ACCESS_CLIENT_SECRET, '__buddy_unchanged__');
     assert.strictEqual(clay.pageSettings.LLM_BASE_URL, 'https://llm.example.ch');
     // localStorage is back to the real values afterwards.
     assert.strictEqual(JSON.parse(env.storage.getItem('clay-settings')).CF_ACCESS_CLIENT_SECRET, SECRET);
@@ -89,7 +89,7 @@ h.test('saving only sends the allowlisted watch settings', (env) => {
 h.test('an unchanged placeholder keeps the secret, an empty field clears it', (env) => {
     h.settings(ALL);
     install(env);
-    const unchanged = Object.assign({}, ALL, {CF_ACCESS_CLIENT_ID: '__benny_unchanged__', CF_ACCESS_CLIENT_SECRET: '__benny_unchanged__', LLM_MODEL: 'other'});
+    const unchanged = Object.assign({}, ALL, {CF_ACCESS_CLIENT_ID: '__buddy_unchanged__', CF_ACCESS_CLIENT_SECRET: '__buddy_unchanged__', LLM_MODEL: 'other'});
     env.pebble.dispatch('webviewclosed', {response: pageResponse(unchanged)});
     let stored = JSON.parse(env.storage.getItem('clay-settings'));
     assert.strictEqual(stored.CF_ACCESS_CLIENT_ID, SECRET_ID);

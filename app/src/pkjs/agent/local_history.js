@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-var PREFIX = 'benny-thread:';
+var PREFIX = 'buddy-thread:';
 // Only a few turns: each one costs prompt tokens and latency on a 14B model.
 var MAX_TURNS = 3;
 var MAX_STORED_CHARS = 400;

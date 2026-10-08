@@ -92,7 +92,7 @@ static void prv_show_empty(Window *window) {
     text_layer_set_background_color(data->empty_text_layer, GColorClear);
     text_layer_set_font(data->empty_text_layer, fonts->title_font);
     text_layer_set_text_alignment(data->empty_text_layer, GTextAlignmentCenter);
-    text_layer_set_text(data->empty_text_layer, "No reminders.\nAsk Benny to set some.");
+    text_layer_set_text(data->empty_text_layer, "No reminders.\nAsk Buddy to set some.");
   }
 
   // Create sleeping horse if not exists

@@ -126,7 +126,7 @@ h.test('reminders need exactly one of time or delay_mins and some text', () => {
 });
 
 h.test('delete_reminder needs an id, update_settings a known setting', () => {
-    assert.deepStrictEqual(ok('delete_reminder', {id: 'benny-reminder-1'}), {id: 'benny-reminder-1'});
+    assert.deepStrictEqual(ok('delete_reminder', {id: 'buddy-reminder-1'}), {id: 'buddy-reminder-1'});
     err('delete_reminder', {}, NOW, /get_reminders/);
     assert.deepStrictEqual(ok('update_settings', {unitSystem: 'metric', bogus: 1}), {unitSystem: 'metric'});
     assert.deepStrictEqual(ok('update_settings', {confirmPrompts: false}), {confirmPrompts: false});

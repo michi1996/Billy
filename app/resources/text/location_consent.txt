@@ -1,3 +1,3 @@
-Benny can use your location for weather and local context. Your coordinates are sent to your own language model server with your prompts, and to Open-Meteo for local weather. This can be changed later in the app settings.
+Buddy can use your location for weather and local context. Your coordinates are sent to your own language model server with your prompts, and to Open-Meteo for local weather. This can be changed later in the app settings.
 
-Can Benny access your location?
+Can Buddy access your location?

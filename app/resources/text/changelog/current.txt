@@ -1,5 +1,5 @@
-# Benny 0.1
-Benny is a fork of Billy and Bobby that talks to your own language model server.
+# Buddy 0.1
+Buddy is a fork of Billy and Bobby that talks to your own language model server.
 ## Your own server
 Prompts go from the Pebble phone app to your llama.cpp server behind Cloudflare Access. Configure it in the app settings.
 ## Watch features

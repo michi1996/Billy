@@ -109,12 +109,12 @@ function resolveWeatherLocation(args, callback) {
         return;
     }
     if (!config.isLocationEnabled()) {
-        callback(new Error('Location is disabled in Benny settings.'));
+        callback(new Error('Location is disabled in Buddy settings.'));
         return;
     }
     if (!location.isReady()) {
         location.update();
-        callback(new Error('Local weather needs a recent phone location. Open Benny once or check location permission.'));
+        callback(new Error('Local weather needs a recent phone location. Open Buddy once or check location permission.'));
         return;
     }
     var pos = location.getPos();

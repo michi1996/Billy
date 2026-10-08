@@ -24,7 +24,7 @@ var STORAGE_KEY = 'clay-settings';
 
 exports.SECRET_KEYS = ['CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET'];
 exports.WATCH_KEYS = ['QUICK_LAUNCH_BEHAVIOUR', 'ALARM_VIBE_PATTERN', 'TIMER_VIBE_PATTERN', 'CONFIRM_TRANSCRIPTS'];
-exports.SECRET_PLACEHOLDER = '__benny_unchanged__';
+exports.SECRET_PLACEHOLDER = '__buddy_unchanged__';
 
 function load(storage) {
     try {

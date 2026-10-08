@@ -178,7 +178,7 @@ static void prv_app_message_handler(DictionaryIterator *iter, void *context) {
   }
   if (tuple->value->int32 == 1) {
     rw->talking_horse_overridden = true;
-    talking_horse_layer_set_text(rw->talking_horse_layer, "Cobble has many Benny bugs.");
+    talking_horse_layer_set_text(rw->talking_horse_layer, "Cobble has many Buddy bugs.");
     window_set_background_color(rw->window, COLOR_FALLBACK(GColorRed, GColorDarkGray));
     vibe_haptic_feedback();
   }

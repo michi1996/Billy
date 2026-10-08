@@ -1,6 +1,6 @@
-# Benny-Server: llama.cpp hinter Cloudflare Access
+# Buddy-Server: llama.cpp hinter Cloudflare Access
 
-Benny schickt jede Anfrage aus der Pebble-App auf dem Handy direkt an deinen eigenen
+Buddy schickt jede Anfrage aus der Pebble-App auf dem Handy direkt an deinen eigenen
 `llama-server` (OpenAI-kompatible API von llama.cpp). Der Server ist nicht offen im Internet,
 sondern über einen Cloudflare Tunnel erreichbar und mit einem **Cloudflare Access Service Token**
 geschützt.
@@ -49,9 +49,9 @@ llama-server \
 - `-fa on` (Flash Attention). Ältere llama.cpp-Builds kennen nur den Schalter `-fa` ohne Wert.
 - `-ngl 99` lädt alle Schichten auf die GPU, `-c 8192` reicht für Systemprompt, Tools und die
   letzten drei Gesprächsrunden.
-- `-np 1` (ein Slot): Benny schickt bei jeder Anfrage denselben Systemprompt und dieselbe
+- `-np 1` (ein Slot): Buddy schickt bei jeder Anfrage denselben Systemprompt und dieselbe
   Tool-Liste. Mit einem Slot bleibt dieser Präfix im KV-Cache und wird nicht neu berechnet
-  (Benny setzt `cache_prompt: true`). Das spart pro Anfrage mehrere Sekunden.
+  (Buddy setzt `cache_prompt: true`). Das spart pro Anfrage mehrere Sekunden.
 - **KV-Cache nicht extrem quantisieren.** Standard ist f16. Wenn der VRAM knapp ist, ist
   `-ctk q8_0 -ctv q8_0` noch unproblematisch; `q4_0` für den KV-Cache verschlechtert
   Tool-Aufrufe und Datumsrechnungen spürbar.
@@ -90,8 +90,8 @@ Die Antwort muss `choices[0].message.tool_calls` mit `set_timer` enthalten.
 
 ```sh
 cloudflared tunnel login
-cloudflared tunnel create benny-llm
-cloudflared tunnel route dns benny-llm llm.example.ch
+cloudflared tunnel create buddy-llm
+cloudflared tunnel route dns buddy-llm llm.example.ch
 ```
 
 `/etc/cloudflared/config.yml`:
@@ -108,21 +108,21 @@ ingress:
   - service: http_status:404
 ```
 
-Danach `cloudflared tunnel run benny-llm` bzw. als Dienst: `sudo cloudflared service install`.
+Danach `cloudflared tunnel run buddy-llm` bzw. als Dienst: `sudo cloudflared service install`.
 
 ## 4. Cloudflare Access (Service Token)
 
 1. **Service Token anlegen:** Zero Trust → Access → Service Auth → Service Tokens →
    *Create Service Token*. Client ID und Client Secret sofort sichern – das Secret wird nur
    einmal angezeigt. Das Token läuft nach der gewählten Dauer ab (Standard ein Jahr), danach
-   ein neues anlegen und in Benny eintragen.
+   ein neues anlegen und in Buddy eintragen.
 2. **Anwendung anlegen:** Zero Trust → Access → Applications → *Add an application* →
    **Self-hosted**, Domain `llm.example.ch`.
 3. **Policy:** Aktion **Service Auth** (nicht *Allow*), Include → *Service Token* → dein Token.
    Weitere Policies sind nicht nötig; ohne Token leitet Access auf die Login-Seite um bzw.
-   antwortet mit 401/403. Benny erkennt das und meldet „Zugang verweigert – Service Token prüfen“.
+   antwortet mit 401/403. Buddy erkennt das und meldet „Zugang verweigert – Service Token prüfen“.
 
-Benny schickt das Token als `CF-Access-Client-Id` und `CF-Access-Client-Secret` im Header,
+Buddy schickt das Token als `CF-Access-Client-Id` und `CF-Access-Client-Secret` im Header,
 nie in der URL.
 
 ### Bot-Schutz und Challenges für den Hostnamen abschalten
@@ -142,7 +142,7 @@ Captcha-Challenge kann dort niemand lösen, die Anfrage scheitert dann.
 ### Zeitlimit
 
 Cloudflare bricht Anfragen, auf die der Ursprung nicht innerhalb von **100 Sekunden** antwortet,
-mit HTTP 524 ab. Benny begrenzt deshalb den Timeout (Einstellung 10–90 s, Standard 45 s) und die
+mit HTTP 524 ab. Buddy begrenzt deshalb den Timeout (Einstellung 10–90 s, Standard 45 s) und die
 Antwortlänge (`max_tokens: 300`). Auf einer brauchbaren GPU dauert eine Runde mit gecachtem
 Präfix meist 1–5 Sekunden.
 
@@ -167,11 +167,11 @@ Benötigt `bash`, `curl` und `python3`. Die Token-Werte werden nicht ausgegeben 
 Kommandozeilenargument übergeben, sondern über eine temporäre Datei (Rechte 600) an `curl`
 gereicht und danach gelöscht.
 
-## 6. In Benny eintragen
+## 6. In Buddy eintragen
 
-In der Pebble-App → Benny → Einstellungen:
+In der Pebble-App → Buddy → Einstellungen:
 
-- **Server URL:** `https://llm.example.ch` (ohne Pfad; Benny hängt `/v1/chat/completions` an)
+- **Server URL:** `https://llm.example.ch` (ohne Pfad; Buddy hängt `/v1/chat/completions` an)
 - **Cloudflare Access Client ID / Client Secret:** aus Schritt 4
 - **Model:** `qwen2.5-14b-instruct` (wird mitgeschickt, llama-server ignoriert ihn meist)
 - **Request timeout:** 45 s ist ein guter Startwert, höchstens 90 s

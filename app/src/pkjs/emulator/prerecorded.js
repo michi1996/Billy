@@ -3,7 +3,7 @@ function clarificationTestResponse() {
         {"FUNCTION":"Testing clarification picker..."},
         {
             "CLARIFY_WIDGET":1,
-            "CLARIFY_QUESTION":"Which alarm should Benny delete?",
+            "CLARIFY_QUESTION":"Which alarm should Buddy delete?",
             "CLARIFY_CONTEXT":"Delete one of the alarms at 07:00 or 07:30.",
             "CLARIFY_OPTION_COUNT":3,
             "CLARIFY_OPTION_0":"07:00",

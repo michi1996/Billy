@@ -60,7 +60,7 @@ function handleAppMessage(e) {
 
 function doCobbleWarning() {
     if (window.cobble) {
-        console.log("WARNING: Running Benny on Cobble is not supported, and has multiple known issues.");
+        console.log("WARNING: Running Buddy on Cobble is not supported, and has multiple known issues.");
         Pebble.sendAppMessage({COBBLE_WARNING: 1});
     }
 }
@@ -70,7 +70,7 @@ Pebble.addEventListener("ready",
         // This happens before anything else because I don't trust Cobble to get through the normal flow,
         // given how many things bizarrely don't work.
         doCobbleWarning();
-        console.log("Benny " + package_json['version']);
+        console.log("Buddy " + package_json['version']);
         if (Pebble.platform === 'pypkjs') {
             console.log("Entering emulator mode.");
             var emulator_main = require('./emulator/emulator_main');

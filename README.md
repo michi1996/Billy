@@ -1,16 +1,16 @@
-# Benny
+# Buddy
 
-Benny ist ein Sprachassistent für Pebble-Uhren von Core Devices (Core Time 2 / Emery), der mit
+Buddy ist ein Sprachassistent für Pebble-Uhren von Core Devices (Core Time 2 / Emery), der mit
 **deinem eigenen Sprachmodell-Server** spricht: `llama-server` (llama.cpp, z. B. mit
 Qwen 2.5 14B) hinter einem Cloudflare Tunnel, geschützt mit einem Cloudflare Access Service Token.
 
-Benny ist ein Fork von [Billy](https://github.com/TomBolger/Billy), das seinerseits auf
+Buddy ist ein Fork von [Billy](https://github.com/TomBolger/Billy), das seinerseits auf
 Bobby / Tiny Assistant aus der Rebble- und Pebble-Community aufbaut.
 
 Die App ist eine einzelne PBW und läuft auf **Android und iOS** komplett in PebbleKit JS in der
 Pebble-App – ohne Companion-App und ohne fremden Cloud-Dienst.
 
-## Was Benny kann
+## Was Buddy kann
 
 - freie Fragen kurz und uhrtauglich beantworten
 - Wecker setzen, auflisten, löschen
@@ -28,7 +28,7 @@ Pebble-App – ohne Companion-App und ohne fremden Cloud-Dienst.
 1. **Server aufsetzen:** siehe [`server/README.md`](server/README.md) – llama-server,
    Cloudflare Tunnel, Access-Policy mit Service Token und `server/smoke-test.sh` zum Prüfen.
 2. **PBW bauen und installieren** (siehe unten) oder das PBW-Artefakt aus GitHub Actions nehmen.
-3. **Einstellungen** in der Pebble-App → Benny ausfüllen:
+3. **Einstellungen** in der Pebble-App → Buddy ausfüllen:
    - *Server URL* – z. B. `https://llm.example.ch` (ohne Pfad)
    - *Cloudflare Access Client ID* und *Client Secret*
    - *Model* – Standard `qwen2.5-14b-instruct`
@@ -51,8 +51,8 @@ Timer und Wecker funktionieren trotzdem.
 - Das Diktat läuft über die Pebble-App auf dem Handy, nicht über deinen Server.
 - Höchstens **8 Wecker und Timer** gleichzeitig (Grenze der Pebble-Wakeup-API).
 - Erinnerungen kurz in der Zukunft können wegen der Timeline-Synchronisierung verspätet
-  ankommen; Benny weist darauf hin. Erinnerungen brauchen einen Timeline-Token der Pebble-App;
-  fehlt er, meldet Benny das. Ob der Pin danach beim Timeline-Dienst ankommt, prüft Benny nicht.
+  ankommen; Buddy weist darauf hin. Erinnerungen brauchen einen Timeline-Token der Pebble-App;
+  fehlt er, meldet Buddy das. Ob der Pin danach beim Timeline-Dienst ankommt, prüft Buddy nicht.
 - Keine Websuche: Das Modell kennt nur seinen Trainingsstand.
 - Cloudflare bricht Anfragen nach 100 Sekunden ab; deshalb maximal 90 s Timeout.
 
@@ -72,7 +72,7 @@ pebble build      # schreibt app/build/app.pbw
 
 ### Emulator
 
-Im Emulator spielt Benny standardmässig aufgezeichnete Antworten ab. Um gegen den echten Server
+Im Emulator spielt Buddy standardmässig aufgezeichnete Antworten ab. Um gegen den echten Server
 zu testen:
 
 ```sh
@@ -94,9 +94,9 @@ Repository.
 
 ## Credits
 
-Benny: Achi.
+Buddy: Achi.
 
-Benny ist ein Fork von Billy und Bobby / Tiny Assistant aus der Rebble- und Pebble-Community.
+Buddy ist ein Fork von Billy und Bobby / Tiny Assistant aus der Rebble- und Pebble-Community.
 Billy-Entwickler: Thomas Bolger. Grafiken und Icons: Sarah Bolger und Katherine Berry.
 Die ursprünglichen Bobby-Credits und die Apache-2.0-Lizenzierung bleiben erhalten.
 
@@ -106,5 +106,5 @@ Apache 2.0, siehe `LICENSE`.
 
 ## Hinweis
 
-Benny ist kein offizielles Produkt von Pebble, Core Devices, Rebble, Cloudflare oder den
+Buddy ist kein offizielles Produkt von Pebble, Core Devices, Rebble, Cloudflare oder den
 Modell-Anbietern.

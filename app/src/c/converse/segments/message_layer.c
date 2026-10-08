@@ -113,7 +113,7 @@ static char *prv_get_content_text(MessageLayer *layer) {
     case EntryTypeResponse:
       return conversation_entry_get_response(entry)->response;
     default:
-      return "(Benny bug)";
+      return "(Buddy bug)";
   }
 }
 

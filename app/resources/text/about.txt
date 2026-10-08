@@ -1,4 +1,4 @@
-# Benny
+# Buddy
 ## Version %d.%d
 A Pebble assistant for your own language model server.
 Fork of Billy and Bobby.
