@@ -22,6 +22,8 @@ var customConfigFunction = require('./custom_config');
 var config = require('./config');
 var reminders = require('./reminders');
 var settingsPage = require('./settings_page');
+var quickPrompts = require('./quick_prompts');
+var messageQueue = require('./lib/message_queue').Queue;
 var package_json = require('package.json');
 
 
@@ -31,6 +33,8 @@ settingsPage.install(clay, localStorage, Pebble);
 function main() {
     location.update();
     Pebble.addEventListener('appmessage', handleAppMessage);
+    // Keep the watch's quick prompt list in sync (e.g. "Automatic" follows the phone language).
+    messageQueue.enqueue(quickPrompts.buildMessage(config.getSettings()));
 }
 
 function handleAppMessage(e) {

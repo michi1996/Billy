@@ -61,6 +61,48 @@ bool settings_get_should_confirm_transcripts() {
   return persist_read_bool(PERSIST_KEY_CONFIRM_TRANSCRIPTS);
 }
 
+QuickPromptsSetting settings_get_quick_prompts() {
+  // English (0) is also the default when nothing has been stored yet.
+  int result = persist_read_int(PERSIST_KEY_QUICK_PROMPTS);
+  if (result < QuickPromptsEnglish || result > QuickPromptsCustom) {
+    return QuickPromptsEnglish;
+  }
+  return result;
+}
+
+bool settings_get_custom_quick_prompts(char *buffer, size_t size) {
+  if (size == 0 || !persist_exists(PERSIST_KEY_QUICK_PROMPTS_CUSTOM)) {
+    return false;
+  }
+  persist_read_string(PERSIST_KEY_QUICK_PROMPTS_CUSTOM, buffer, size);
+  buffer[size - 1] = '\0';
+  return buffer[0] != '\0';
+}
+
+static QuickPromptsSetting prv_quick_prompts_from_code(const char *code) {
+  if (strcmp(code, "de") == 0) {
+    return QuickPromptsGerman;
+  } else if (strcmp(code, "fr") == 0) {
+    return QuickPromptsFrench;
+  } else if (strcmp(code, "it") == 0) {
+    return QuickPromptsItalian;
+  } else if (strcmp(code, "custom") == 0) {
+    return QuickPromptsCustom;
+  }
+  return QuickPromptsEnglish;
+}
+
+static void prv_store_custom_quick_prompts(const char *text) {
+  if (text[0] == '\0') {
+    persist_delete(PERSIST_KEY_QUICK_PROMPTS_CUSTOM);
+    return;
+  }
+  char buffer[QUICK_PROMPTS_CUSTOM_MAX_LENGTH + 1];
+  strncpy(buffer, text, sizeof(buffer));
+  buffer[sizeof(buffer) - 1] = '\0';
+  persist_write_string(PERSIST_KEY_QUICK_PROMPTS_CUSTOM, buffer);
+}
+
 static void prv_app_message_handler(DictionaryIterator *iter, void *context) {
   for (Tuple *tuple = dict_read_first(iter); tuple; tuple = dict_read_next(iter)) {
     if (tuple->key == MESSAGE_KEY_QUICK_LAUNCH_BEHAVIOUR) {
@@ -72,6 +114,10 @@ static void prv_app_message_handler(DictionaryIterator *iter, void *context) {
       persist_write_int(PERSIST_KEY_TIMER_VIBE_PATTERN, atoi(tuple->value->cstring));
     } else if (tuple->key == MESSAGE_KEY_CONFIRM_TRANSCRIPTS) {
       persist_write_bool(PERSIST_KEY_CONFIRM_TRANSCRIPTS, tuple->value->int8);
+    } else if (tuple->key == MESSAGE_KEY_QUICK_PROMPTS_LANG) {
+      persist_write_int(PERSIST_KEY_QUICK_PROMPTS, prv_quick_prompts_from_code(tuple->value->cstring));
+    } else if (tuple->key == MESSAGE_KEY_QUICK_PROMPTS_CUSTOM) {
+      prv_store_custom_quick_prompts(tuple->value->cstring);
     }
   }
 }

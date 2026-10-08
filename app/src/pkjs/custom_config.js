@@ -20,6 +20,29 @@ module.exports = function(minified) {
     var clayConfig = this;
 
     clayConfig.on(clayConfig.EVENTS.AFTER_BUILD, function() {
-        // not actually anything to do here.
+        // Only show the custom quick prompt fields when "Custom" is selected.
+        var choice = clayConfig.getItemByMessageKey('QUICK_PROMPTS');
+        var fields = [];
+        for (var i = 1; i <= 6; i++) {
+            var field = clayConfig.getItemByMessageKey('CUSTOM_PROMPT_' + i);
+            if (field) {
+                fields.push(field);
+            }
+        }
+        if (!choice) {
+            return;
+        }
+        function update() {
+            var custom = choice.get() === 'custom';
+            fields.forEach(function(field) {
+                if (custom) {
+                    field.show();
+                } else {
+                    field.hide();
+                }
+            });
+        }
+        choice.on('change', update);
+        update();
     });
 }

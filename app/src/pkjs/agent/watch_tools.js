@@ -16,6 +16,8 @@
 
 var actions = require('../actions');
 var reminderStore = require('../lib/reminders');
+var config = require('../config');
+var quickPrompts = require('../quick_prompts');
 
 // Waiting longer than this for Pebble.getTimelineToken means timeline pins won't work either.
 var TIMELINE_TOKEN_WAIT_MS = 5000;
@@ -248,7 +250,13 @@ exports.execute = function(session, name, args, callback) {
                 action[key] = args[key];
             }
         }
-        callAction(session, action, callback);
+        callAction(session, action, function(result) {
+            if (args.responseLanguage !== undefined) {
+                // "Automatic" quick prompts follow the response language.
+                session.enqueue(quickPrompts.buildMessage(config.getSettings()));
+            }
+            callback(result);
+        });
         return true;
     default:
         return false;

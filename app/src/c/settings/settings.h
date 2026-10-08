@@ -32,9 +32,24 @@ typedef enum {
   VibePatternSettingStandard = 5,
 } VibePatternSetting;
 
+// Stored as persist values; the numbers must not change.
+typedef enum {
+  QuickPromptsEnglish = 0,
+  QuickPromptsGerman = 1,
+  QuickPromptsFrench = 2,
+  QuickPromptsItalian = 3,
+  QuickPromptsCustom = 4,
+} QuickPromptsSetting;
+
+// Persist strings are limited to 256 bytes including the terminator.
+#define QUICK_PROMPTS_CUSTOM_MAX_LENGTH 255
+
 void settings_init();
 void settings_deinit();
 QuickLaunchBehaviour settings_get_quick_launch_behaviour();
 VibePatternSetting settings_get_alarm_vibe_pattern();
 VibePatternSetting settings_get_timer_vibe_pattern();
 bool settings_get_should_confirm_transcripts();
+QuickPromptsSetting settings_get_quick_prompts();
+// Copies the user's own quick prompts (one per line) into buffer. Returns false if there are none.
+bool settings_get_custom_quick_prompts(char *buffer, size_t size);

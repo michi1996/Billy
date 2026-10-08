@@ -20,6 +20,8 @@
 // - stored secrets are never written into the generated config page URL. The page gets a
 //   placeholder instead; saving the placeholder keeps the stored value, an empty field clears it.
 
+var quickPrompts = require('./quick_prompts');
+
 var STORAGE_KEY = 'clay-settings';
 
 exports.SECRET_KEYS = ['CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET'];
@@ -79,6 +81,9 @@ exports.buildWatchMessage = function(settings) {
         }
         message[key] = value;
     });
+    var prompts = quickPrompts.buildMessage(settings);
+    message.QUICK_PROMPTS_LANG = prompts.QUICK_PROMPTS_LANG;
+    message.QUICK_PROMPTS_CUSTOM = prompts.QUICK_PROMPTS_CUSTOM;
     return message;
 };
 

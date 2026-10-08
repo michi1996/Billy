@@ -34,6 +34,9 @@ Pebble app – no companion app and no third-party cloud service.
    - *Model* – default `qwen2.5-14b-instruct`
    - *Request timeout* – 10–90 s, default 45 s
    - language, units and location access as you like
+   - *Quick prompts* – the suggestions behind the Up button on the start screen: Automatic
+     (follows the response language, then the phone's language), English, Deutsch, Français,
+     Italiano, or Custom with up to six of your own prompts
 
 Without a configured server the watch shows "Set up the server in the app settings"; simple
 timers and alarms still work.

@@ -26,6 +26,7 @@
 #include "util/time.h"
 #include "util/memory/malloc.h"
 #include "util/memory/sdk.h"
+#include "settings/settings.h"
 #include "version/version.h"
 #include "vibes/haptic_feedback.h"
 
@@ -252,12 +253,36 @@ static void prv_more_clicked(ClickRecognizerRef recognizer, void* context) {
   root_menu_window_push();
 }
 
-static int prv_load_suggestions(char*** suggestions) {
-  ResHandle handle = resource_get_handle(RESOURCE_ID_SAMPLE_PROMPTS);
+// The quick prompt list chosen in the phone settings, as one heap string with one prompt per line.
+static char* prv_load_quick_prompt_text(void) {
+  QuickPromptsSetting setting = settings_get_quick_prompts();
+  if (setting == QuickPromptsCustom) {
+    char custom[QUICK_PROMPTS_CUSTOM_MAX_LENGTH + 1];
+    if (settings_get_custom_quick_prompts(custom, sizeof(custom))) {
+      char* text = bmalloc(strlen(custom) + 1);
+      strcpy(text, custom);
+      return text;
+    }
+  }
+  uint32_t resource_id = RESOURCE_ID_QUICK_PROMPTS_EN;
+  if (setting == QuickPromptsGerman) {
+    resource_id = RESOURCE_ID_QUICK_PROMPTS_DE;
+  } else if (setting == QuickPromptsFrench) {
+    resource_id = RESOURCE_ID_QUICK_PROMPTS_FR;
+  } else if (setting == QuickPromptsItalian) {
+    resource_id = RESOURCE_ID_QUICK_PROMPTS_IT;
+  }
+  ResHandle handle = resource_get_handle(resource_id);
   size_t size = resource_size(handle);
-  char* buffer = bmalloc(size + 1);
-  resource_load(handle, (uint8_t*)buffer, size);
-  buffer[size] = '\0';
+  char* text = bmalloc(size + 1);
+  resource_load(handle, (uint8_t*)text, size);
+  text[size] = '\0';
+  return text;
+}
+
+static int prv_load_suggestions(char*** suggestions) {
+  char* buffer = prv_load_quick_prompt_text();
+  size_t size = strlen(buffer);
   int count = 1;
   for (size_t i = 0; i + 1 < size; ++i) {
     if (buffer[i] == '\n') {

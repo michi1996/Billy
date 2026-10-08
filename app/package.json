@@ -102,7 +102,9 @@
       "CLARIFY_OPTION_2",
       "CLARIFY_OPTION_3",
       "CONFIRM_TRANSCRIPTS",
-      "ACTION_SETTINGS_UPDATED"
+      "ACTION_SETTINGS_UPDATED",
+      "QUICK_PROMPTS_LANG",
+      "QUICK_PROMPTS_CUSTOM"
     ],
     "resources": {
       "media": [
@@ -223,8 +225,23 @@
           "type": "raw"
         },
         {
-          "file": "text/sample_prompts.txt",
-          "name": "SAMPLE_PROMPTS",
+          "file": "text/quick_prompts/en.txt",
+          "name": "QUICK_PROMPTS_EN",
+          "type": "raw"
+        },
+        {
+          "file": "text/quick_prompts/de.txt",
+          "name": "QUICK_PROMPTS_DE",
+          "type": "raw"
+        },
+        {
+          "file": "text/quick_prompts/fr.txt",
+          "name": "QUICK_PROMPTS_FR",
+          "type": "raw"
+        },
+        {
+          "file": "text/quick_prompts/it.txt",
+          "name": "QUICK_PROMPTS_IT",
           "type": "raw"
         },
         {

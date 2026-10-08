@@ -160,6 +160,91 @@
         "items": [
             {
                 "type": "heading",
+                "defaultValue": "Quick prompts"
+            },
+            {
+                "type": "select",
+                "id": "QUICK_PROMPTS",
+                "messageKey": "QUICK_PROMPTS",
+                "label": "Quick prompts",
+                "description": "The suggestions shown when you press Up on the start screen. Automatic uses the response language, or the phone's language. Custom shows your own prompts (one per field; all of them together may use up to 250 bytes).",
+                "defaultValue": "auto",
+                "options": [
+                    {"label": "Automatic", "value": "auto"},
+                    {"label": "English", "value": "en"},
+                    {"label": "Deutsch", "value": "de"},
+                    {"label": "Fran\u00e7ais", "value": "fr"},
+                    {"label": "Italiano", "value": "it"},
+                    {"label": "Custom", "value": "custom"}
+                ]
+            },
+            {
+                "type": "input",
+                "id": "CUSTOM_PROMPT_1",
+                "messageKey": "CUSTOM_PROMPT_1",
+                "label": "Custom prompt 1",
+                "defaultValue": "",
+                "attributes": {
+                    "maxlength": 60
+                }
+            },
+            {
+                "type": "input",
+                "id": "CUSTOM_PROMPT_2",
+                "messageKey": "CUSTOM_PROMPT_2",
+                "label": "Custom prompt 2",
+                "defaultValue": "",
+                "attributes": {
+                    "maxlength": 60
+                }
+            },
+            {
+                "type": "input",
+                "id": "CUSTOM_PROMPT_3",
+                "messageKey": "CUSTOM_PROMPT_3",
+                "label": "Custom prompt 3",
+                "defaultValue": "",
+                "attributes": {
+                    "maxlength": 60
+                }
+            },
+            {
+                "type": "input",
+                "id": "CUSTOM_PROMPT_4",
+                "messageKey": "CUSTOM_PROMPT_4",
+                "label": "Custom prompt 4",
+                "defaultValue": "",
+                "attributes": {
+                    "maxlength": 60
+                }
+            },
+            {
+                "type": "input",
+                "id": "CUSTOM_PROMPT_5",
+                "messageKey": "CUSTOM_PROMPT_5",
+                "label": "Custom prompt 5",
+                "defaultValue": "",
+                "attributes": {
+                    "maxlength": 60
+                }
+            },
+            {
+                "type": "input",
+                "id": "CUSTOM_PROMPT_6",
+                "messageKey": "CUSTOM_PROMPT_6",
+                "label": "Custom prompt 6",
+                "defaultValue": "",
+                "attributes": {
+                    "maxlength": 60
+                }
+            }
+        ]
+    },
+    {
+        "type": "section",
+        "items": [
+            {
+                "type": "heading",
                 "defaultValue": "Behaviour"
             },
             {

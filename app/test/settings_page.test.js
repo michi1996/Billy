@@ -78,7 +78,9 @@ h.test('saving only sends the allowlisted watch settings', (env) => {
         QUICK_LAUNCH_BEHAVIOUR: '1',
         ALARM_VIBE_PATTERN: '2',
         TIMER_VIBE_PATTERN: '3',
-        CONFIRM_TRANSCRIPTS: 1
+        CONFIRM_TRANSCRIPTS: 1,
+        QUICK_PROMPTS_LANG: 'de',
+        QUICK_PROMPTS_CUSTOM: ''
     });
     const json = JSON.stringify(env.pebble.sent);
     assert.ok(json.indexOf(SECRET) === -1 && json.indexOf(SECRET_ID) === -1);
