@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
-# Smoke-Test für den Buddy-LLM-Server (llama-server hinter Cloudflare Access).
+# Smoke test for the Buddy LLM server (llama-server behind Cloudflare Access).
 #
-# Benötigt: bash, curl (>= 7.55), python3.
-# Liest LLM_BASE_URL, CF_ACCESS_CLIENT_ID und CF_ACCESS_CLIENT_SECRET aus der Umgebung
-# (optional LLM_MODEL). Die Token-Werte werden nie ausgegeben und auch nicht als
-# Kommandozeilenargument übergeben (curl liest die Header aus einer Datei mit Rechten 600).
+# Needs: bash, curl (>= 7.55), python3.
+# Reads LLM_BASE_URL, CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET from the environment
+# (optionally LLM_MODEL). The token values are never printed and never passed as command-line
+# arguments (curl reads the headers from a file with mode 600).
 #
-#   LLM_BASE_URL=https://llm.example.ch \
+#   LLM_BASE_URL=https://llm.example.com \
 #   CF_ACCESS_CLIENT_ID=... CF_ACCESS_CLIENT_SECRET=... ./smoke-test.sh
 
 set -euo pipefail
 
 if [[ -z "${LLM_BASE_URL:-}" || -z "${CF_ACCESS_CLIENT_ID:-}" || -z "${CF_ACCESS_CLIENT_SECRET:-}" ]]; then
-    echo "Bitte LLM_BASE_URL, CF_ACCESS_CLIENT_ID und CF_ACCESS_CLIENT_SECRET setzen." >&2
+    echo "Please set LLM_BASE_URL, CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET." >&2
     exit 2
 fi
 for tool in curl python3; do
-    command -v "$tool" >/dev/null || { echo "$tool fehlt." >&2; exit 2; }
+    command -v "$tool" >/dev/null || { echo "$tool is missing." >&2; exit 2; }
 done
 
 base="${LLM_BASE_URL%/}"
@@ -28,7 +28,7 @@ model="${LLM_MODEL:-qwen2.5-14b-instruct}"
 workdir="$(mktemp -d)"
 trap 'rm -rf "$workdir"' EXIT
 umask 077
-# printf ist ein Shell-Builtin: die Werte tauchen nicht in der Prozessliste auf.
+# printf is a shell builtin, so the values don't show up in the process list.
 printf 'CF-Access-Client-Id: %s\nCF-Access-Client-Secret: %s\n' \
     "$CF_ACCESS_CLIENT_ID" "$CF_ACCESS_CLIENT_SECRET" > "$workdir/auth-headers"
 
@@ -75,45 +75,45 @@ seconds() {
 }
 
 tools='[{"type":"function","function":{"name":"set_timer","description":"Start a countdown timer on the watch.","parameters":{"type":"object","properties":{"duration_seconds":{"type":"integer","description":"Timer length in seconds, e.g. 300 for 5 minutes."},"name":{"type":"string","description":"Only if the user explicitly named the timer."}},"required":["duration_seconds"]}}}]'
-system='You are Buddy, a voice assistant on a Pebble smartwatch. Use the tools for timers. Never claim something was set unless a tool result says "status": "ok". Reply in German, 1-2 short lines.'
+system='You are Buddy, a voice assistant on a Pebble smartwatch. Use the tools for timers. Never claim something was set unless a tool result says "status": "ok". Reply in the language of the user, 1-2 short lines.'
 
 echo "Server: $base"
 echo
 
-echo "(a) Anfrage ohne Service Token wird abgewiesen"
+echo "(a) A request without the service token is rejected"
 cat > "$workdir/plain.json" <<JSON
-{"model":"$model","messages":[{"role":"user","content":"Hallo"}],"max_tokens":5,"stream":false}
+{"model":"$model","messages":[{"role":"user","content":"Hello"}],"max_tokens":5,"stream":false}
 JSON
 read -r code secs ctype < <(post "$workdir/plain.json" "$workdir/a.body")
 if [[ "$code" == "000" ]]; then
-    fail "Server nicht erreichbar"
+    fail "Server unreachable"
 elif [[ "$code" =~ ^(30[1237]|401|403)$ || "$ctype" == text/html* ]]; then
-    pass "abgewiesen (HTTP $code, ${ctype:-ohne Content-Type})"
+    pass "rejected (HTTP $code, ${ctype:-no content type})"
 elif [[ "$code" == "200" && -n "$(json "$workdir/a.body" "d['choices'][0]['message']")" ]]; then
-    fail "Antwort OHNE Token erhalten - Cloudflare Access schützt den Hostnamen nicht!"
+    fail "Got an answer WITHOUT the token - Cloudflare Access is not protecting the hostname!"
 else
-    warn "unerwartete Antwort HTTP $code ($ctype): $(snippet "$workdir/a.body")"
+    warn "unexpected response HTTP $code ($ctype): $(snippet "$workdir/a.body")"
 fi
 
-echo "(b) Anfrage mit Service Token liefert JSON"
+echo "(b) A request with the service token returns JSON"
 cat > "$workdir/hello.json" <<JSON
-{"model":"$model","messages":[{"role":"user","content":"Antworte nur mit: OK"}],"max_tokens":10,"temperature":0,"stream":false}
+{"model":"$model","messages":[{"role":"user","content":"Reply with just: OK"}],"max_tokens":10,"temperature":0,"stream":false}
 JSON
 read -r code secs ctype < <(post "$workdir/hello.json" "$workdir/b.body" auth)
 content="$(json "$workdir/b.body" "d['choices'][0]['message']['content']")"
 if [[ "$code" == "200" && "$ctype" == application/json* && -n "$content" ]]; then
-    pass "HTTP 200, JSON, Antwort: $(echo "$content" | head -c 60) ($(seconds "$secs"))"
+    pass "HTTP 200, JSON, answer: $(echo "$content" | head -c 60) ($(seconds "$secs"))"
 elif [[ "$ctype" == text/html* || "$code" =~ ^(30[1237]|401|403)$ ]]; then
-    fail "Zugang verweigert (HTTP $code, $ctype) - Service Token und Access-Policy (Service Auth) prüfen"
+    fail "Access denied (HTTP $code, $ctype) - check the service token and the Access policy (Service Auth)"
 elif [[ "$code" == "000" ]]; then
-    fail "Server nicht erreichbar"
+    fail "Server unreachable"
 elif [[ "$code" == "524" ]]; then
-    fail "HTTP 524: Modell hat länger als 100 s gebraucht"
+    fail "HTTP 524: the model took longer than 100 s"
 else
     fail "HTTP $code ($ctype): $(snippet "$workdir/b.body")"
 fi
 
-echo "(c) Tool-Aufruf set_timer kommt als tool_calls zurück"
+echo "(c) A set_timer tool call comes back as tool_calls"
 python3 - "$workdir/round1.json" "$model" "$system" "$tools" <<'PY'
 import json, sys
 out, model, system, tools = sys.argv[1:5]
@@ -121,7 +121,7 @@ body = {
     "model": model,
     "messages": [
         {"role": "system", "content": system},
-        {"role": "user", "content": "[Context] now=2026-10-07T21:46+02:00 Wednesday\nStell einen Timer auf 5 Minuten."},
+        {"role": "user", "content": "[Context] now=2026-10-07T21:46+02:00 Wednesday\nSet a timer for 5 minutes."},
     ],
     "tools": json.loads(tools),
     "tool_choice": "auto",
@@ -137,18 +137,18 @@ read -r code1 secs1 ctype < <(post "$workdir/round1.json" "$workdir/c.body" auth
 name="$(json "$workdir/c.body" "d['choices'][0]['message']['tool_calls'][0]['function']['name']")"
 duration="$(json "$workdir/c.body" "json.loads(d['choices'][0]['message']['tool_calls'][0]['function']['arguments'])['duration_seconds']")"
 if [[ "$code1" == "000" ]]; then
-    fail "Server nicht erreichbar"
+    fail "Server unreachable"
 elif [[ "$code1" != "200" ]]; then
     fail "HTTP $code1 ($ctype): $(snippet "$workdir/c.body")"
 elif [[ "$name" == "set_timer" && "$duration" == "300" ]]; then
-    pass "set_timer mit duration_seconds=300 ($(seconds "$secs1"))"
+    pass "set_timer with duration_seconds=300 ($(seconds "$secs1"))"
 elif [[ "$name" == "set_timer" ]]; then
-    warn "set_timer aufgerufen, aber duration_seconds=$duration statt 300"
+    warn "set_timer called, but with duration_seconds=$duration instead of 300"
 else
-    fail "kein tool_calls-Eintrag. Läuft llama-server mit --jinja und unterstützt das Chat-Template Tools? Antwort: $(snippet "$workdir/c.body")"
+    fail "no tool_calls entry. Is llama-server running with --jinja, and does the chat template support tools? Response: $(snippet "$workdir/c.body")"
 fi
 
-echo "(d) Latenz von zwei Runden (Tool-Aufruf, dann Antwort mit Tool-Ergebnis)"
+echo "(d) Latency of two rounds (tool call, then the answer with the tool result)"
 if [[ "$name" == "set_timer" ]]; then
     python3 - "$workdir/round1.json" "$workdir/c.body" "$workdir/round2.json" <<'PY'
 import json, sys
@@ -166,23 +166,23 @@ PY
     read -r code2 secs2 ctype < <(post "$workdir/round2.json" "$workdir/d.body" auth)
     answer="$(json "$workdir/d.body" "d['choices'][0]['message']['content']")"
     if [[ "$code2" == "200" && -n "$answer" ]]; then
-        pass "Antwort: $(echo "$answer" | tr '\n' ' ' | head -c 80)"
+        pass "answer: $(echo "$answer" | tr '\n' ' ' | head -c 80)"
     else
-        fail "zweite Runde: HTTP $code2 ($ctype): $(snippet "$workdir/d.body")"
+        fail "second round: HTTP $code2 ($ctype): $(snippet "$workdir/d.body")"
     fi
     total="$(python3 -c "import sys; print(float(sys.argv[1]) + float(sys.argv[2]))" "$secs1" "$secs2")"
-    echo "        Runde 1: $(seconds "$secs1")   Runde 2: $(seconds "$secs2")   Total: $(seconds "$total")"
+    echo "        Round 1: $(seconds "$secs1")   Round 2: $(seconds "$secs2")   Total: $(seconds "$total")"
     for round in c d; do
-        stats="$(json "$workdir/$round.body" "'Prompt-Tokens %s, davon neu berechnet %s (%.0f ms), generiert %s (%.0f ms)' % (d['usage']['prompt_tokens'], d['timings']['prompt_n'], d['timings']['prompt_ms'], d['timings']['predicted_n'], d['timings']['predicted_ms'])")"
-        [[ -n "$stats" ]] && echo "        $([[ $round == c ]] && echo 'Runde 1' || echo 'Runde 2'): $stats"
+        stats="$(json "$workdir/$round.body" "'prompt tokens %s, recomputed %s (%.0f ms), generated %s (%.0f ms)' % (d['usage']['prompt_tokens'], d['timings']['prompt_n'], d['timings']['prompt_ms'], d['timings']['predicted_n'], d['timings']['predicted_ms'])")"
+        [[ -n "$stats" ]] && echo "        $([[ $round == c ]] && echo 'Round 1' || echo 'Round 2'): $stats"
     done
 else
-    warn "übersprungen, weil (c) keinen Tool-Aufruf geliefert hat"
+    warn "skipped because (c) returned no tool call"
 fi
 
 echo
 if [[ "$failures" -gt 0 ]]; then
-    echo "$failures Prüfung(en) fehlgeschlagen."
+    echo "$failures check(s) failed."
     exit 1
 fi
-echo "Alle Prüfungen bestanden."
+echo "All checks passed."

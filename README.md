@@ -1,110 +1,109 @@
 # Buddy
 
-Buddy ist ein Sprachassistent für Pebble-Uhren von Core Devices (Core Time 2 / Emery), der mit
-**deinem eigenen Sprachmodell-Server** spricht: `llama-server` (llama.cpp, z. B. mit
-Qwen 2.5 14B) hinter einem Cloudflare Tunnel, geschützt mit einem Cloudflare Access Service Token.
+Buddy is a voice assistant for Core Devices Pebble watches (Core Time 2 / Emery) that talks to
+**your own language model server**: `llama-server` (llama.cpp, e.g. with Qwen 2.5 14B) behind a
+Cloudflare Tunnel, protected by a Cloudflare Access service token.
 
-Buddy ist ein Fork von [Billy](https://github.com/TomBolger/Billy), das seinerseits auf
-Bobby / Tiny Assistant aus der Rebble- und Pebble-Community aufbaut.
+Buddy is a fork of [Billy](https://github.com/TomBolger/Billy), which in turn builds on
+Bobby / Tiny Assistant from the Rebble and Pebble community.
 
-Die App ist eine einzelne PBW und läuft auf **Android und iOS** komplett in PebbleKit JS in der
-Pebble-App – ohne Companion-App und ohne fremden Cloud-Dienst.
+The app is a single PBW and runs on **Android and iOS** entirely in PebbleKit JS inside the
+Pebble app – no companion app and no third-party cloud service.
 
-## Was Buddy kann
+## What Buddy can do
 
-- freie Fragen kurz und uhrtauglich beantworten
-- Wecker setzen, auflisten, löschen
-- Timer setzen, auflisten, löschen
-- Erinnerungen als Timeline-Pins setzen, auflisten, löschen
-- Uhr-Einstellungen per Sprache ändern (Einheiten, Antwortsprache, Vibration, Quick Launch,
-  Bestätigung des Diktats)
-- Wetter mit Wetterkarte (Open-Meteo)
-- Rückfragen mit Auswahl-Picker auf der Uhr
-- einfache Timer und Wecker („Timer 5 Minuten“, „Wecker um 6:45“) sofort und ohne Modell
-  (abschaltbar)
+- answer questions briefly, sized for the watch
+- set, list and delete alarms
+- set, list and delete timers
+- set, list and delete reminders as timeline pins
+- change watch settings by voice (units, response language, vibration, quick launch,
+  dictation confirmation)
+- weather with a weather card (Open-Meteo)
+- follow-up questions with an option picker on the watch
+- simple timers and alarms ("Set a timer for 5 minutes") instantly, without the model
+  (can be switched off)
 
-## Einrichtung
+## Setup
 
-1. **Server aufsetzen:** siehe [`server/README.md`](server/README.md) – llama-server,
-   Cloudflare Tunnel, Access-Policy mit Service Token und `server/smoke-test.sh` zum Prüfen.
-2. **PBW bauen und installieren** (siehe unten) oder das PBW-Artefakt aus GitHub Actions nehmen.
-3. **Einstellungen** in der Pebble-App → Buddy ausfüllen:
-   - *Server URL* – z. B. `https://llm.example.ch` (ohne Pfad)
-   - *Cloudflare Access Client ID* und *Client Secret*
-   - *Model* – Standard `qwen2.5-14b-instruct`
-   - *Request timeout* – 10–90 s, Standard 45 s
-   - Sprache, Einheiten und Standortfreigabe nach Wunsch
+1. **Set up the server:** see [`server/README.md`](server/README.md) – llama-server,
+   Cloudflare Tunnel, an Access policy with a service token, and `server/smoke-test.sh` to check it.
+2. **Build and install the PBW** (see below), or take the PBW artifact from GitHub Actions.
+3. **Fill in the settings** in the Pebble app → Buddy:
+   - *Server URL* – e.g. `https://llm.example.com` (no path)
+   - *Cloudflare Access Client ID* and *Client Secret*
+   - *Model* – default `qwen2.5-14b-instruct`
+   - *Request timeout* – 10–90 s, default 45 s
+   - language, units and location access as you like
 
-Ohne konfigurierten Server zeigt die Uhr „Server in den Einstellungen konfigurieren“; einfache
-Timer und Wecker funktionieren trotzdem.
+Without a configured server the watch shows "Set up the server in the app settings"; simple
+timers and alarms still work.
 
-### Datenschutz
+### Privacy
 
-- Die Service-Token-Werte bleiben in der Pebble-App auf dem Handy. Sie werden nur als
-  HTTP-Header an deinen Server geschickt, nie in URLs, Logs oder per AppMessage an die Uhr.
-- Anfragen gehen ausschliesslich an deinen Server, Wetterdaten an Open-Meteo, Ortsnamen an
-  OpenStreetMap Nominatim, Erinnerungs-Pins an die Pebble-Timeline.
-- Mit Standortfreigabe werden die Koordinaten als Kontext an deinen Server geschickt.
+- The service token values stay in the Pebble app on the phone. They are only sent as HTTP
+  headers to your server, never in URLs, logs or AppMessages to the watch.
+- Requests go only to your server; weather data comes from Open-Meteo, place names are looked
+  up with OpenStreetMap Nominatim, and reminder pins go to the Pebble timeline.
+- With location access enabled, your coordinates are sent to your server as context.
 
-## Einschränkungen
+## Limitations
 
-- Das Diktat läuft über die Pebble-App auf dem Handy, nicht über deinen Server.
-- Höchstens **8 Wecker und Timer** gleichzeitig (Grenze der Pebble-Wakeup-API).
-- Erinnerungen kurz in der Zukunft können wegen der Timeline-Synchronisierung verspätet
-  ankommen; Buddy weist darauf hin. Erinnerungen brauchen einen Timeline-Token der Pebble-App;
-  fehlt er, meldet Buddy das. Ob der Pin danach beim Timeline-Dienst ankommt, prüft Buddy nicht.
-- Keine Websuche: Das Modell kennt nur seinen Trainingsstand.
-- Cloudflare bricht Anfragen nach 100 Sekunden ab; deshalb maximal 90 s Timeout.
+- Dictation runs through the Pebble app on the phone, not through your server.
+- At most **8 alarms and timers** at the same time (limit of the Pebble wakeup API).
+- Reminders shortly in the future can arrive late because of timeline sync; Buddy warns about
+  this. Reminders need a timeline token from the Pebble app; if it is missing, Buddy says so.
+  Buddy does not check whether the pin actually reaches the timeline service.
+- No web search: the model only knows what it was trained on.
+- Cloudflare cuts requests off after 100 seconds, so the timeout is at most 90 s.
 
-## Entwicklung
+## Development
 
-PebbleKit JS ist ES5: kein `let`/`const`, keine Arrow-Functions, kein `fetch`, keine Promises.
-Ein Test erzwingt das.
+PebbleKit JS is ES5: no `let`/`const`, no arrow functions, no `fetch`, no Promises.
+A test enforces this.
 
 ```sh
 cd app
-npm test          # Node-Unit-Tests, keine Abhängigkeiten
-pebble build      # schreibt app/build/app.pbw
+npm test          # Node unit tests, no dependencies
+pebble build      # writes app/build/app.pbw
 ```
 
-`pebble build` braucht das Pebble SDK, z. B. `pip install pebble-tool` und
-`pebble sdk install latest`. Die CI (`.github/workflows/build-pbw.yaml`) führt Tests und Build aus.
+`pebble build` needs the Pebble SDK, e.g. `pip install pebble-tool` and
+`pebble sdk install latest`. CI (`.github/workflows/build-pbw.yaml`) runs the tests and the build.
 
 ### Emulator
 
-Im Emulator spielt Buddy standardmässig aufgezeichnete Antworten ab. Um gegen den echten Server
-zu testen:
+By default the emulator replays recorded answers. To test against the real server:
 
 ```sh
 pebble install --emulator emery
 pebble emu-app-config --emulator emery
 ```
 
-Auf der Einstellungsseite Server und Token eintragen und unter *Development* „Emulator: use the
-real server“ einschalten. Die Werte landen nur im lokalen Speicher des Emulators, nicht im
-Repository.
+Enter the server and token on the settings page and turn on "Emulator: use the real server"
+under *Development*. The values only end up in the emulator's local storage, not in the
+repository.
 
-### Aufbau
+### Layout
 
-- `app/src/c/` – Uhr-App (Diktat, Gespräch, Wecker/Timer über die Wakeup-API, Menüs)
-- `app/src/pkjs/agent/` – LLM-Client, Agent-Loop, Prompt, Tools, Validierung, Fast-Path
-- `app/src/pkjs/actions/` – führt Wecker/Timer/Erinnerungen/Einstellungen auf der Uhr aus
-- `app/test/` – Unit-Tests
-- `server/` – Server-Doku und Smoke-Test
+- `app/src/c/` – watch app (dictation, conversation, alarms/timers via the wakeup API, menus)
+- `app/src/pkjs/agent/` – LLM client, agent loop, prompt, tools, validation, fast path
+- `app/src/pkjs/actions/` – runs alarm/timer/reminder/settings actions on the watch
+- `app/test/` – unit tests
+- `server/` – server docs and smoke test
 
 ## Credits
 
 Buddy: Achi.
 
-Buddy ist ein Fork von Billy und Bobby / Tiny Assistant aus der Rebble- und Pebble-Community.
-Billy-Entwickler: Thomas Bolger. Grafiken und Icons: Sarah Bolger und Katherine Berry.
-Die ursprünglichen Bobby-Credits und die Apache-2.0-Lizenzierung bleiben erhalten.
+Buddy is a fork of Billy and Bobby / Tiny Assistant from the Rebble and Pebble community.
+Billy developer: Thomas Bolger. Artwork and iconography: Sarah Bolger and Katherine Berry.
+The original Bobby credits and Apache 2.0 licensing are preserved.
 
-## Lizenz
+## License
 
-Apache 2.0, siehe `LICENSE`.
+Apache 2.0; see `LICENSE`.
 
-## Hinweis
+## Disclaimer
 
-Buddy ist kein offizielles Produkt von Pebble, Core Devices, Rebble, Cloudflare oder den
-Modell-Anbietern.
+Buddy is not an official product of Pebble, Core Devices, Rebble, Cloudflare or any model
+provider.

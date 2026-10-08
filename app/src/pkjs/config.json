@@ -20,11 +20,11 @@
                 "id": "LLM_BASE_URL",
                 "messageKey": "LLM_BASE_URL",
                 "label": "Server URL",
-                "description": "Base URL without a path, e.g. https://llm.example.ch. Buddy appends /v1/chat/completions.",
+                "description": "Base URL without a path, e.g. https://llm.example.com. Buddy appends /v1/chat/completions.",
                 "defaultValue": "",
                 "attributes": {
                     "type": "url",
-                    "placeholder": "https://llm.example.ch",
+                    "placeholder": "https://llm.example.com",
                     "autocapitalize": "off",
                     "autocorrect": "off"
                 }

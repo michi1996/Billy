@@ -1,35 +1,34 @@
-# Buddy-Server: llama.cpp hinter Cloudflare Access
+# Buddy server: llama.cpp behind Cloudflare Access
 
-Buddy schickt jede Anfrage aus der Pebble-App auf dem Handy direkt an deinen eigenen
-`llama-server` (OpenAI-kompatible API von llama.cpp). Der Server ist nicht offen im Internet,
-sondern über einen Cloudflare Tunnel erreichbar und mit einem **Cloudflare Access Service Token**
-geschützt.
+Buddy sends every request from the Pebble app on the phone straight to your own `llama-server`
+(llama.cpp's OpenAI-compatible API). The server is not exposed to the internet directly; it is
+reachable through a Cloudflare Tunnel and protected by a **Cloudflare Access service token**.
 
 ```
-Pebble-Uhr ──Bluetooth──▶ Pebble-App (PebbleKit JS) ──HTTPS + Service Token──▶ Cloudflare Access
-                                                                                     │
-                                                       cloudflared-Tunnel ◀──────────┘
-                                                              │
-                                                    llama-server 127.0.0.1:8080
+Pebble watch ──Bluetooth──▶ Pebble app (PebbleKit JS) ──HTTPS + service token──▶ Cloudflare Access
+                                                                                       │
+                                                         cloudflared tunnel ◀──────────┘
+                                                                │
+                                                      llama-server 127.0.0.1:8080
 ```
 
-## 1. Modell
+## 1. Model
 
-Empfohlen: **Qwen2.5-14B-Instruct** als GGUF.
+Recommended: **Qwen2.5-14B-Instruct** as GGUF.
 
-| Quantisierung | Grösse ca. | Hinweis |
+| Quantisation | Size approx. | Note |
 |---|---|---|
-| `Q4_K_M` | 9 GB | guter Standard, passt mit Kontext in 12 GB VRAM |
-| `Q5_K_M` | 10.5 GB | etwas genauer, braucht ca. 14 GB VRAM mit Kontext |
+| `Q4_K_M` | 9 GB | good default, fits in 12 GB VRAM including context |
+| `Q5_K_M` | 10.5 GB | slightly more accurate, needs about 14 GB VRAM including context |
 
-Darunter (Q3, Q2) leidet vor allem die Zuverlässigkeit der Tool-Aufrufe.
+Below that (Q3, Q2) mostly the reliability of tool calls suffers.
 
-Download z. B. aus dem offiziellen Repository `Qwen/Qwen2.5-14B-Instruct-GGUF`. Die Dateien sind
-dort in mehrere Teile gesplittet; `llama-server` lädt sie, wenn du den ersten Teil
-(`…-00001-of-0000N.gguf`) angibst. Alternativ lädt llama.cpp das Modell selbst:
+Download it e.g. from the official repository `Qwen/Qwen2.5-14B-Instruct-GGUF`. The files there
+are split into several parts; `llama-server` loads them when you point it at the first part
+(`…-00001-of-0000N.gguf`). Alternatively llama.cpp downloads the model itself:
 `-hf Qwen/Qwen2.5-14B-Instruct-GGUF:Q4_K_M`.
 
-## 2. llama-server starten
+## 2. Start llama-server
 
 ```sh
 llama-server \
@@ -43,55 +42,55 @@ llama-server \
   --alias qwen2.5-14b-instruct
 ```
 
-- `--jinja` ist **Pflicht**: Nur mit dem Jinja-Chat-Template versteht der Server `tools` und gibt
-  `tool_calls` zurück.
-- `--host 127.0.0.1`: Der Server lauscht nur lokal, erreichbar ist er ausschliesslich über den Tunnel.
-- `-fa on` (Flash Attention). Ältere llama.cpp-Builds kennen nur den Schalter `-fa` ohne Wert.
-- `-ngl 99` lädt alle Schichten auf die GPU, `-c 8192` reicht für Systemprompt, Tools und die
-  letzten drei Gesprächsrunden.
-- `-np 1` (ein Slot): Buddy schickt bei jeder Anfrage denselben Systemprompt und dieselbe
-  Tool-Liste. Mit einem Slot bleibt dieser Präfix im KV-Cache und wird nicht neu berechnet
-  (Buddy setzt `cache_prompt: true`). Das spart pro Anfrage mehrere Sekunden.
-- **KV-Cache nicht extrem quantisieren.** Standard ist f16. Wenn der VRAM knapp ist, ist
-  `-ctk q8_0 -ctv q8_0` noch unproblematisch; `q4_0` für den KV-Cache verschlechtert
-  Tool-Aufrufe und Datumsrechnungen spürbar.
+- `--jinja` is **required**: only with the Jinja chat template does the server understand
+  `tools` and return `tool_calls`.
+- `--host 127.0.0.1`: the server only listens locally and is reachable only through the tunnel.
+- `-fa on` (flash attention). Older llama.cpp builds only know the bare `-fa` switch.
+- `-ngl 99` puts all layers on the GPU; `-c 8192` is enough for the system prompt, the tools and
+  the last three conversation turns.
+- `-np 1` (one slot): Buddy sends the same system prompt and tool list with every request. With
+  a single slot that prefix stays in the KV cache and is not recomputed (Buddy sets
+  `cache_prompt: true`). This saves several seconds per request.
+- **Don't quantise the KV cache aggressively.** The default is f16. If VRAM is tight,
+  `-ctk q8_0 -ctv q8_0` is still fine; `q4_0` for the KV cache noticeably hurts tool calls and
+  date arithmetic.
 
-### Chat-Template prüfen
+### Check the chat template
 
 ```sh
 curl -s http://127.0.0.1:8080/props | python3 -m json.tool | less
 ```
 
-Im Feld `chat_template` muss das Template Tools verarbeiten (bei Qwen 2.5 sind `tools` und
-`<tool_call>` darin zu finden); neuere Builds zeigen zusätzlich
-`chat_template_caps.supports_tools: true`. Fehlt das, weil die GGUF-Datei ein altes oder
-abgespecktes Template enthält, gib das Template explizit an:
+The template in the `chat_template` field has to handle tools (for Qwen 2.5 it contains `tools`
+and `<tool_call>`); newer builds also show `chat_template_caps.supports_tools: true`. If that is
+missing because the GGUF file ships an old or stripped-down template, pass the template
+explicitly:
 
 ```sh
 llama-server … --jinja --chat-template-file qwen2.5-instruct.jinja
 ```
 
-Ein passendes Template steht im llama.cpp-Repository unter `models/templates/` (Qwen2.5-Instruct)
-oder in der `tokenizer_config.json` des Original-Modells auf Hugging Face.
+A matching template is in the llama.cpp repository under `models/templates/` (Qwen2.5-Instruct)
+or in the original model's `tokenizer_config.json` on Hugging Face.
 
-### Lokal testen
+### Test locally
 
 ```sh
 curl -s http://127.0.0.1:8080/v1/chat/completions \
   -H 'Content-Type: application/json' \
-  -d '{"messages":[{"role":"user","content":"Stell einen Timer auf 5 Minuten."}],
+  -d '{"messages":[{"role":"user","content":"Set a timer for 5 minutes."}],
        "tools":[{"type":"function","function":{"name":"set_timer","parameters":{"type":"object",
        "properties":{"duration_seconds":{"type":"integer"}},"required":["duration_seconds"]}}}]}'
 ```
 
-Die Antwort muss `choices[0].message.tool_calls` mit `set_timer` enthalten.
+The response must contain `choices[0].message.tool_calls` with `set_timer`.
 
 ## 3. Cloudflare Tunnel
 
 ```sh
 cloudflared tunnel login
 cloudflared tunnel create buddy-llm
-cloudflared tunnel route dns buddy-llm llm.example.ch
+cloudflared tunnel route dns buddy-llm llm.example.com
 ```
 
 `/etc/cloudflared/config.yml`:
@@ -101,79 +100,78 @@ tunnel: <TUNNEL-UUID>
 credentials-file: /etc/cloudflared/<TUNNEL-UUID>.json
 
 ingress:
-  - hostname: llm.example.ch
+  - hostname: llm.example.com
     service: http://127.0.0.1:8080
     originRequest:
       connectTimeout: 10s
   - service: http_status:404
 ```
 
-Danach `cloudflared tunnel run buddy-llm` bzw. als Dienst: `sudo cloudflared service install`.
+Then run `cloudflared tunnel run buddy-llm`, or install it as a service:
+`sudo cloudflared service install`.
 
-## 4. Cloudflare Access (Service Token)
+## 4. Cloudflare Access (service token)
 
-1. **Service Token anlegen:** Zero Trust → Access → Service Auth → Service Tokens →
-   *Create Service Token*. Client ID und Client Secret sofort sichern – das Secret wird nur
-   einmal angezeigt. Das Token läuft nach der gewählten Dauer ab (Standard ein Jahr), danach
-   ein neues anlegen und in Buddy eintragen.
-2. **Anwendung anlegen:** Zero Trust → Access → Applications → *Add an application* →
-   **Self-hosted**, Domain `llm.example.ch`.
-3. **Policy:** Aktion **Service Auth** (nicht *Allow*), Include → *Service Token* → dein Token.
-   Weitere Policies sind nicht nötig; ohne Token leitet Access auf die Login-Seite um bzw.
-   antwortet mit 401/403. Buddy erkennt das und meldet „Zugang verweigert – Service Token prüfen“.
+1. **Create a service token:** Zero Trust → Access → Service Auth → Service Tokens →
+   *Create Service Token*. Save the client ID and client secret right away – the secret is only
+   shown once. The token expires after the chosen duration (one year by default); then create a
+   new one and enter it in Buddy.
+2. **Create an application:** Zero Trust → Access → Applications → *Add an application* →
+   **Self-hosted**, domain `llm.example.com`.
+3. **Policy:** action **Service Auth** (not *Allow*), Include → *Service Token* → your token.
+   No other policies are needed. Without the token, Access redirects to its login page or answers
+   with 401/403; Buddy detects this and shows "Access denied - check the service token".
 
-Buddy schickt das Token als `CF-Access-Client-Id` und `CF-Access-Client-Secret` im Header,
-nie in der URL.
+Buddy sends the token in the `CF-Access-Client-Id` and `CF-Access-Client-Secret` headers, never
+in the URL.
 
-### Bot-Schutz und Challenges für den Hostnamen abschalten
+### Turn off bot protection and challenges for the hostname
 
-Die Anfragen kommen nicht aus einem Browser, sondern aus der Pebble-App. Ein JavaScript- oder
-Captcha-Challenge kann dort niemand lösen, die Anfrage scheitert dann.
+Requests come from the Pebble app, not from a browser. Nobody can solve a JavaScript or captcha
+challenge there, so the request fails.
 
-- **Bot Fight Mode** (Security → Bots) gilt bei Free-Plänen für die ganze Zone und lässt sich
-  nicht pro Hostname ausnehmen: für diese Zone ausschalten (oder den LLM-Hostnamen in einer
-  eigenen Zone betreiben). Mit **Super Bot Fight Mode** (Pro und höher) eine
-  WAF-Custom-Rule `http.host eq "llm.example.ch"` mit Aktion *Skip* → *All Super Bot Fight Mode
-  Rules* anlegen.
-- **Challenges:** Für den Hostnamen eine Configuration Rule anlegen (Security Level
-  *Essentially Off*, Browser Integrity Check aus) und darauf achten, dass keine WAF- oder
-  Rate-Limiting-Regel mit *Managed/JS Challenge* greift. „I'm Under Attack“ darf nicht aktiv sein.
+- **Bot Fight Mode** (Security → Bots) applies to the whole zone on Free plans and cannot be
+  skipped per hostname: turn it off for this zone (or run the LLM hostname in a separate zone).
+  With **Super Bot Fight Mode** (Pro and above), create a WAF custom rule
+  `http.host eq "llm.example.com"` with the action *Skip* → *All Super Bot Fight Mode Rules*.
+- **Challenges:** create a Configuration Rule for the hostname (Security Level
+  *Essentially Off*, Browser Integrity Check off) and make sure no WAF or rate-limiting rule with
+  a *Managed/JS Challenge* applies. "I'm Under Attack" mode must not be on.
 
-### Zeitlimit
+### Time limit
 
-Cloudflare bricht Anfragen, auf die der Ursprung nicht innerhalb von **100 Sekunden** antwortet,
-mit HTTP 524 ab. Buddy begrenzt deshalb den Timeout (Einstellung 10–90 s, Standard 45 s) und die
-Antwortlänge (`max_tokens: 300`). Auf einer brauchbaren GPU dauert eine Runde mit gecachtem
-Präfix meist 1–5 Sekunden.
+Cloudflare aborts requests whose origin does not answer within **100 seconds** with HTTP 524.
+Buddy therefore limits the timeout (setting 10–90 s, default 45 s) and the answer length
+(`max_tokens: 300`). On a reasonable GPU one round with a cached prefix usually takes 1–5 seconds.
 
-## 5. Smoke-Test
+## 5. Smoke test
 
-`smoke-test.sh` prüft von aussen über Cloudflare:
+`smoke-test.sh` checks from the outside, through Cloudflare, that:
 
-- (a) eine Anfrage **ohne** Token wird abgewiesen,
-- (b) eine Anfrage **mit** Token liefert JSON,
-- (c) ein Tool-Aufruf (`set_timer`) kommt korrekt als `tool_calls` zurück,
-- (d) die Latenz von zwei Runden (Tool-Aufruf, dann Antwort mit Tool-Ergebnis), inklusive der
-  Prompt-Cache-Statistik von llama-server.
+- (a) a request **without** the token is rejected,
+- (b) a request **with** the token returns JSON,
+- (c) a tool call (`set_timer`) comes back correctly as `tool_calls`,
+- (d) and it prints the latency of two rounds (tool call, then the answer with the tool result),
+  including llama-server's prompt cache statistics.
 
 ```sh
-export LLM_BASE_URL=https://llm.example.ch
+export LLM_BASE_URL=https://llm.example.com
 export CF_ACCESS_CLIENT_ID=…
 export CF_ACCESS_CLIENT_SECRET=…
 ./smoke-test.sh
 ```
 
-Benötigt `bash`, `curl` und `python3`. Die Token-Werte werden nicht ausgegeben und nicht als
-Kommandozeilenargument übergeben, sondern über eine temporäre Datei (Rechte 600) an `curl`
-gereicht und danach gelöscht.
+Needs `bash`, `curl` and `python3`. The token values are never printed and not passed as
+command-line arguments; they reach `curl` through a temporary file (mode 600) that is deleted
+afterwards.
 
-## 6. In Buddy eintragen
+## 6. Configure Buddy
 
-In der Pebble-App → Buddy → Einstellungen:
+In the Pebble app → Buddy → Settings:
 
-- **Server URL:** `https://llm.example.ch` (ohne Pfad; Buddy hängt `/v1/chat/completions` an)
-- **Cloudflare Access Client ID / Client Secret:** aus Schritt 4
-- **Model:** `qwen2.5-14b-instruct` (wird mitgeschickt, llama-server ignoriert ihn meist)
-- **Request timeout:** 45 s ist ein guter Startwert, höchstens 90 s
+- **Server URL:** `https://llm.example.com` (no path; Buddy appends `/v1/chat/completions`)
+- **Cloudflare Access Client ID / Client Secret:** from step 4
+- **Model:** `qwen2.5-14b-instruct` (sent along; llama-server usually ignores it)
+- **Request timeout:** 45 s is a good start, 90 s at most
 
-Die Werte bleiben in der Pebble-App auf dem Handy und werden nie an die Uhr geschickt.
+The values stay in the Pebble app on the phone and are never sent to the watch.
