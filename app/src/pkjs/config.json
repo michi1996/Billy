@@ -1,8 +1,6 @@
 [
     {
-        "type": "heading",
-        "defaultValue": "Buddy",
-        "size": 1
+        "type": "buddy-header"
     },
     {
         "type": "section",
@@ -326,6 +324,9 @@
                 "description": "Only affects the Pebble emulator. When off, the emulator replays recorded answers."
             }
         ]
+    },
+    {
+        "type": "buddy-privacy"
     },
     {
         "type": "submit",
