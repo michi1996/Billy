@@ -73,6 +73,35 @@ function looksLikeHtml(text, contentType, responseUrl) {
     return /^\s*</.test(text || '');
 }
 
+// The error text from a JSON error body ({"error": {"message": ...}} from llama-server and
+// most OpenAI-compatible servers), so the user can see why the server refused. HTML error
+// pages are ignored.
+exports.errorDetail = function(text, contentType) {
+    if (!text || looksLikeHtml(text, contentType)) {
+        return '';
+    }
+    var detail = '';
+    try {
+        var body = JSON.parse(text);
+        if (body && body.error && typeof body.error.message === 'string') {
+            detail = body.error.message;
+        } else if (body && typeof body.error === 'string') {
+            detail = body.error;
+        } else if (body && typeof body.message === 'string') {
+            detail = body.message;
+        } else if (body && typeof body.detail === 'string') {
+            detail = body.detail;
+        }
+    } catch (e) {
+        detail = '';
+    }
+    return detail.replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '');
+};
+
+function clip(text, max) {
+    return text.length > max ? text.substring(0, max - 3) + '...' : text;
+}
+
 exports.mapHttpError = function(status, text, contentType, responseUrl) {
     if (!status) {
         return makeError('unreachable', MESSAGES.unreachable, 0);
@@ -87,7 +116,10 @@ exports.mapHttpError = function(status, text, contentType, responseUrl) {
         return makeError('unreachable', MESSAGES.unreachable + ' (' + status + ')', status);
     }
     if (status < 200 || status >= 300) {
-        return makeError('server_error', 'Server error (' + status + ')', status);
+        var detail = exports.errorDetail(text, contentType);
+        var err = makeError('server_error', 'Server error (' + status + ')' + (detail ? ': ' + clip(detail, 80) : ''), status);
+        err.detail = detail;
+        return err;
     }
     if (looksLikeHtml(text, contentType, responseUrl)) {
         // Access redirected us to its login page and the XHR followed the redirect.
@@ -242,6 +274,9 @@ exports.createClient = function(options) {
             log('LLM response: HTTP ' + status + ', ' + text.length + ' bytes, ' + (now() - started) + ' ms');
             var httpError = exports.mapHttpError(status, text, contentType, xhr.responseURL);
             if (httpError) {
+                if (httpError.detail) {
+                    log('LLM server error: ' + clip(httpError.detail, 300));
+                }
                 finish(httpError);
                 return;
             }

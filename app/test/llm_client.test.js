@@ -150,8 +150,12 @@ const errorCases = [
     ['non-JSON body', (x) => x.respond(200, 'hello', {'Content-Type': 'text/plain'}), 'Access denied - check the service token'],
     ['unfollowed redirect', (x) => x.respond(302, '', {}), 'Access denied - check the service token'],
     ['524', (x) => x.respond(524, '<html>timeout</html>', {'Content-Type': 'text/html'}), 'The model took too long'],
-    ['500', (x) => x.respond(500, '{"error":{"message":"boom"}}'), 'Server error (500)'],
-    ['400', (x) => x.respond(400, '{"error":{"message":"context"}}'), 'Server error (400)'],
+    ['500', (x) => x.respond(500, '{"error":{"message":"boom"}}'), 'Server error (500): boom'],
+    ['400', (x) => x.respond(400, '{"error":{"message":"context"}}'), 'Server error (400): context'],
+    ['400 without --jinja', (x) => x.respond(400, '{"error":{"code":400,"message":"tools param requires --jinja flag","type":"invalid_request_error"}}'), 'Server error (400): tools param requires --jinja flag'],
+    ['404 with a plain error string', (x) => x.respond(404, '{"error":"model not found"}'), 'Server error (404): model not found'],
+    ['500 HTML page', (x) => x.respond(500, '<html><body>Internal error</body></html>', {'Content-Type': 'text/html'}), 'Server error (500)'],
+    ['503 without body', (x) => x.respond(503, '', {}), 'Server error (503)'],
     ['530 tunnel down', (x) => x.respond(530, '<html>1033</html>', {'Content-Type': 'text/html'}), 'Server unreachable (530)'],
     ['status 0', (x) => x.respond(0, ''), 'Server unreachable'],
     ['network error', (x) => x.onerror(), 'Server unreachable'],
@@ -168,6 +172,18 @@ errorCases.forEach((tc) => {
         assert.strictEqual(c.get().err.message, tc[2]);
         assertNoSecretsLogged(env);
     });
+});
+
+h.test('the server error text is logged and shortened for the watch', (env) => {
+    configure();
+    const long = 'the request exceeds the available context size, try increasing it with -c or reduce the number of messages in the request';
+    const c = call(env, (x) => x.respond(400, JSON.stringify({error: {code: 400, message: long, type: 'exceed_context_size_error'}})));
+    const message = c.get().err.message;
+    assert.ok(message.indexOf('Server error (400): the request exceeds') === 0, message);
+    assert.ok(message.length <= 'Server error (400): '.length + 80, message);
+    assert.ok(/\.\.\.$/.test(message));
+    assert.ok(env.logs.some((line) => line === 'LLM server error: ' + long), env.logs.join('\n'));
+    assertNoSecretsLogged(env);
 });
 
 h.test('watchdog fires when xhr.timeout is ignored', (env) => {

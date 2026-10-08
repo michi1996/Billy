@@ -165,7 +165,24 @@ Needs `bash`, `curl` and `python3`. The token values are never printed and not p
 command-line arguments; they reach `curl` through a temporary file (mode 600) that is deleted
 afterwards.
 
-## 6. Configure Buddy
+## 6. Troubleshooting
+
+The watch shows the server's own error text after the status code; the app log
+(CloudPebble or `pebble logs`) has the full text in a line starting with `LLM server error:`.
+
+| Message on the watch | Cause and fix |
+|---|---|
+| `Server error (400): tools param requires --jinja flag` | llama-server was started without `--jinja`. Buddy always sends tools; restart with `--jinja`. |
+| `Server error (400): the request exceeds the available context size…` | Context too small; raise `-c` (8192 is enough for Buddy). |
+| `Access denied - check the service token` | Token wrong or expired, or the Access policy is not *Service Auth*. Check with `smoke-test.sh` (a) and (b). |
+| `Server unreachable (530)` / `(502)` | The tunnel or llama-server is down; check `cloudflared` and llama-server. |
+| `The model took too long` | Cloudflare's 100 s limit (HTTP 524). Use a smaller quantisation, keep `-np 1` for the prompt cache, or check that the model runs on the GPU. |
+| `Server error (404): …` | Wrong URL or path. Enter only the base URL; Buddy appends `/v1/chat/completions`. |
+
+Other OpenAI-compatible servers (e.g. Ollama, LM Studio, vLLM) also work if they support tool
+calls. There the *Model* setting must match the name of the loaded model.
+
+## 7. Configure Buddy
 
 In the Pebble app → Buddy → Settings:
 
