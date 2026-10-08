@@ -259,6 +259,44 @@ module.exports = function() {
         update();
     }
 
+    // --- Server check ---
+
+    // Result of the check that runs after the server settings are saved (server_check.js),
+    // shown above the server fields. It fades while those fields are being edited.
+    function setupServerStatus() {
+        var check = clayConfig.meta && clayConfig.meta.userData && clayConfig.meta.userData.serverCheck;
+        var urlItem = clayConfig.getItemByMessageKey('LLM_BASE_URL');
+        if (!check || !urlItem) {
+            return;
+        }
+        var when = '';
+        try {
+            when = check.time ? new Date(check.time).toLocaleString([], {
+                day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+            }) : '';
+        } catch (e) {
+            when = '';
+        }
+        var detail = check.ok ? check.model + ' \u00b7 ' + (check.ms / 1000).toFixed(1) + ' s' : check.message;
+        var status = el('div', {className: 'component server-status ' + (check.ok ? 'is-ok' : 'is-error')}, [
+            el('span', {className: 'server-status-dot', 'aria-hidden': 'true'}),
+            el('div', {className: 'server-status-text'}, [
+                el('strong', {text: check.ok ? 'Connected' : 'Last check failed'}),
+                el('span', {text: detail + (when ? ' \u00b7 ' + when : '')})
+            ])
+        ]);
+        var urlElement = urlItem.$element[0];
+        urlElement.parentNode.insertBefore(status, urlElement);
+        ['LLM_BASE_URL', 'CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET', 'LLM_MODEL'].forEach(function(key) {
+            var item = clayConfig.getItemByMessageKey(key);
+            if (item) {
+                item.$manipulatorTarget[0].addEventListener('input', function() {
+                    status.classList.add('is-stale');
+                });
+            }
+        });
+    }
+
     // --- Quick prompts ---
 
     // Same rules as quick_prompts.customText: prompts that do not fit are left out.
@@ -343,6 +381,7 @@ module.exports = function() {
         '--line:rgba(60,60,67,.14);--field:#f0f0f4;--accent:#cf4310;--accent-pressed:#b53a0d;',
         '--accent-text:#c2410c;--accent-soft:rgba(207,67,16,.12);--success:#1b7a43;',
         '--success-soft:rgba(27,122,67,.1);--warning:#8a5300;--warning-soft:rgba(214,138,0,.14);',
+        '--danger:#d70015;--danger-soft:rgba(215,0,21,.08);',
         '--switch-off:#e3e3e8;--savebar-bg:rgba(242,242,247,.86);',
         '--shadow:0 1px 2px rgba(16,16,24,.05),0 8px 24px rgba(16,16,24,.06);--savebar-h:104px;',
         '--button-glow:0 6px 18px rgba(207,67,16,.3)}',
@@ -350,6 +389,7 @@ module.exports = function() {
         '--text-2:#a5a5af;--text-3:#7a7a84;--line:rgba(255,255,255,.09);--field:#28282e;',
         '--accent-text:#ff8f61;--accent-soft:rgba(255,143,97,.14);--success:#3ddc6f;',
         '--success-soft:rgba(61,220,111,.13);--warning:#ffc457;--warning-soft:rgba(255,196,87,.13);',
+        '--danger:#ff5a50;--danger-soft:rgba(255,90,80,.14);',
         '--switch-off:#3a3a40;--savebar-bg:rgba(14,14,17,.84);--shadow:none;--button-glow:none}}',
 
         'html,body{background:var(--bg)!important;color:var(--text);',
@@ -414,6 +454,15 @@ module.exports = function() {
         '#main-form .component-select label:after{content:"";position:absolute;right:18px;bottom:21px;',
         'width:7px;height:7px;border-right:2px solid var(--text-2);border-bottom:2px solid var(--text-2);',
         'transform:rotate(45deg);pointer-events:none}',
+        '#main-form .section>.server-status{display:flex;align-items:flex-start;gap:10px;margin:14px 16px 0;',
+        'padding:10px 12px;border-radius:12px;font-size:13px;line-height:1.4;transition:opacity .2s}',
+        '.server-status.is-ok{background:var(--success-soft);color:var(--success)}',
+        '.server-status.is-error{background:var(--danger-soft);color:var(--danger)}',
+        '.server-status.is-stale{opacity:.45}',
+        '.server-status-dot{flex:none;width:8px;height:8px;border-radius:50%;background:currentColor;margin-top:5px}',
+        '.server-status-text{min-width:0}',
+        '#main-form .server-status strong{display:block;color:inherit;font-weight:650}',
+        '.server-status-text span{display:block;color:var(--text-2);word-break:break-word}',
         '.saved-badge{font-size:11px;font-weight:650;letter-spacing:.02em;color:var(--success);',
         'background:var(--success-soft);border-radius:999px;padding:1px 8px}',
 
@@ -482,6 +531,7 @@ module.exports = function() {
                 setupSecret(item);
             }
         });
+        setupServerStatus();
         clayConfig.getItemsByType('slider').forEach(setupSlider);
         setupQuickPrompts();
 

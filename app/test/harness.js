@@ -88,6 +88,7 @@ function FakePebble() {
     this.sent = [];
     this.timelineTokenOk = true;
     this.openedUrls = [];
+    this.notifications = [];
 }
 FakePebble.prototype.addEventListener = function(name, fn) {
     (this.listeners[name] = this.listeners[name] || []).push(fn);
@@ -113,6 +114,9 @@ FakePebble.prototype.getTimelineToken = function(ok, fail) {
 };
 FakePebble.prototype.openURL = function(url) {
     this.openedUrls.push(url);
+};
+FakePebble.prototype.showSimpleNotificationOnPebble = function(title, body) {
+    this.notifications.push({title: title, body: body});
 };
 
 // ---- XMLHttpRequest ----
@@ -187,7 +191,8 @@ function setup() {
         error: console.error,
         Pebble: global.Pebble,
         localStorage: global.localStorage,
-        navigator: global.navigator
+        navigator: global.navigator,
+        XMLHttpRequest: global.XMLHttpRequest
     };
     global.setTimeout = clock.setTimeout.bind(clock);
     global.clearTimeout = clock.clearTimeout.bind(clock);
@@ -197,7 +202,14 @@ function setup() {
         logs.push(Array.prototype.join.call(arguments, ' '));
     };
     console.error = console.log;
-    env = {clock: clock, pebble: pebble, storage: storage, logs: logs, saved: saved};
+    // Code that creates its own XMLHttpRequest gets a MockXhr, collected in env.xhrs.
+    const xhrs = [];
+    global.XMLHttpRequest = function() {
+        const xhr = new MockXhr();
+        xhrs.push(xhr);
+        return xhr;
+    };
+    env = {clock: clock, pebble: pebble, storage: storage, logs: logs, saved: saved, xhrs: xhrs};
     pkjs('agent/clock').now = function() {
         return Date.now();
     };
@@ -210,6 +222,7 @@ function teardown() {
     global.clearTimeout = saved.clearTimeout;
     global.Pebble = saved.Pebble;
     global.localStorage = saved.localStorage;
+    global.XMLHttpRequest = saved.XMLHttpRequest;
     console.log = saved.log;
     console.error = saved.error;
     env = null;

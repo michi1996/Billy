@@ -40,6 +40,10 @@ Pebble app – no companion app and no third-party cloud service.
      (follows the response language, then the phone's language), English, Deutsch, Français,
      Italiano, or Custom with up to six of your own prompts
 
+When you save changed server settings, Buddy sends a one-word test request and shows the result
+on the watch ("Server OK" with the model and response time, or what went wrong). The settings page
+shows the last result at the top of the Server card.
+
 Without a configured server the watch shows "Set up the server in the app settings"; simple
 timers and alarms still work.
 

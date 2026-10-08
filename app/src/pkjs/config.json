@@ -11,7 +11,7 @@
             },
             {
                 "type": "text",
-                "defaultValue": "Buddy sends your prompts to your own llama-server (OpenAI-compatible API) behind Cloudflare Access. The values below are stored only in the Pebble phone app and are never sent to the watch."
+                "defaultValue": "Buddy sends your prompts to your own llama-server (OpenAI-compatible API) behind Cloudflare Access. The values below are stored only in the Pebble phone app and are never sent to the watch. When you change them, Buddy checks the connection after saving and shows the result on your watch."
             },
             {
                 "type": "input",
@@ -60,7 +60,7 @@
                 "id": "LLM_MODEL",
                 "messageKey": "LLM_MODEL",
                 "label": "Model",
-                "description": "Sent as the model field. llama-server usually ignores it.",
+                "description": "Sent as the model field. Must be a model name your server knows, otherwise it answers \"model not found\".",
                 "defaultValue": "qwen2.5-14b-instruct",
                 "attributes": {
                     "autocapitalize": "off",

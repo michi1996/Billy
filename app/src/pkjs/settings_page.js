@@ -19,8 +19,10 @@
 // - only the settings the watch actually reads are sent by AppMessage (an allowlist), and
 // - stored secrets are never written into the generated config page URL. The page gets a
 //   placeholder instead; saving the placeholder keeps the stored value, an empty field clears it.
+// After saving, changed server settings are checked (see server_check.js).
 
 var quickPrompts = require('./quick_prompts');
+var serverCheck = require('./server_check');
 
 var STORAGE_KEY = 'clay-settings';
 
@@ -87,7 +89,30 @@ exports.buildWatchMessage = function(settings) {
     return message;
 };
 
+// Clay pastes the page data in with String#replace (where dollar patterns are special) into an
+// inline script, so text from the server must not carry those characters.
+function pageText(value) {
+    return String(value || '').replace(/[\u0024<>]/g, '');
+}
+
+// What the settings page shows about the last server check, or null.
+exports.serverCheckForPage = function(result) {
+    if (!result) {
+        return null;
+    }
+    return {
+        ok: !!result.ok,
+        message: pageText(result.message),
+        model: pageText(result.model),
+        ms: Number(result.ms) || 0,
+        time: Number(result.time) || 0
+    };
+};
+
 exports.generateUrl = function(clay, storage) {
+    if (clay.meta) {
+        clay.meta.userData = {serverCheck: exports.serverCheckForPage(serverCheck.lastResult(storage))};
+    }
     var raw = storage.getItem(STORAGE_KEY);
     storage.setItem(STORAGE_KEY, JSON.stringify(exports.maskSecrets(load(storage))));
     try {
@@ -119,6 +144,7 @@ exports.install = function(clay, storage, pebble) {
         pebble.openURL(exports.generateUrl(clay, storage));
     });
     pebble.addEventListener('webviewclosed', function(e) {
+        var before = load(storage);
         var message = exports.handleResponse(clay, storage, e && e.response);
         if (!message) {
             return;
@@ -128,5 +154,12 @@ exports.install = function(clay, storage, pebble) {
         }, function() {
             console.log('Failed to send watch settings to Pebble.');
         });
+        if (serverCheck.shouldRun(before, load(storage), serverCheck.lastResult(storage))) {
+            serverCheck.run({storage: storage}, function(result) {
+                if (typeof pebble.showSimpleNotificationOnPebble === 'function') {
+                    pebble.showSimpleNotificationOnPebble('Buddy', serverCheck.notificationText(result));
+                }
+            });
+        }
     });
 };

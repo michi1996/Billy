@@ -50,17 +50,21 @@ exports.buildUrl = function(baseUrl) {
 };
 
 exports.buildBody = function(settings, request) {
-    return {
+    var body = {
         model: settings.model,
-        messages: request.messages,
-        tools: request.tools,
-        tool_choice: request.toolChoice || 'auto',
-        parallel_tool_calls: false,
-        temperature: 0.2,
-        max_tokens: 300,
-        stream: false,
-        cache_prompt: true
+        messages: request.messages
     };
+    // Requests without tools (the server check) leave out the tool fields entirely.
+    if (request.tools && request.tools.length) {
+        body.tools = request.tools;
+        body.tool_choice = request.toolChoice || 'auto';
+        body.parallel_tool_calls = false;
+    }
+    body.temperature = 0.2;
+    body.max_tokens = request.maxTokens || 300;
+    body.stream = false;
+    body.cache_prompt = true;
+    return body;
 };
 
 function looksLikeHtml(text, contentType, responseUrl) {
@@ -209,7 +213,8 @@ exports.parseResponse = function(json) {
     return {
         content: content,
         toolCalls: toolCalls,
-        finishReason: choice.finish_reason || null
+        finishReason: choice.finish_reason || null,
+        model: typeof json.model === 'string' ? json.model : null
     };
 };
 
@@ -317,7 +322,8 @@ exports.createClient = function(options) {
             finish(makeError('unreachable', MESSAGES.unreachable, 0));
         }, timeoutMs + WATCHDOG_GRACE_MS);
 
-        log('LLM request: ' + request.messages.length + ' message(s), tool_choice=' + (request.toolChoice || 'auto'));
+        log('LLM request: ' + request.messages.length + ' message(s), ' +
+            (request.tools && request.tools.length ? 'tool_choice=' + (request.toolChoice || 'auto') : 'no tools'));
         xhr.send(JSON.stringify(exports.buildBody(settings, request)));
     }
 
