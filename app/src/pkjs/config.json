@@ -85,7 +85,7 @@
                 "id": "FAST_PATH_ENABLED",
                 "messageKey": "FAST_PATH_ENABLED",
                 "label": "Instant timers and alarms",
-                "description": "Simple commands such as \"Timer 5 Minuten\" or \"Wecker um 6:45\" are handled on the phone without asking the model.",
+                "description": "Simple commands such as \"Set a timer for 5 minutes\" are handled on the phone without asking the model.",
                 "defaultValue": true
             }
         ]

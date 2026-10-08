@@ -90,7 +90,7 @@ function locationText(nowMs) {
     }
     var text = pos.lat.toFixed(4) + ',' + pos.lon.toFixed(4);
     if (pos.accuracy) {
-        text += ' (±' + Math.round(pos.accuracy) + ' m)';
+        text += ' (\u00b1' + Math.round(pos.accuracy) + ' m)';
     }
     return text;
 }

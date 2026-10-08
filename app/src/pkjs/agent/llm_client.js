@@ -25,11 +25,11 @@ var COMPLETIONS_PATH = '/v1/chat/completions';
 var WATCHDOG_GRACE_MS = 2000;
 
 var MESSAGES = {
-    notConfigured: 'Server in den Einstellungen konfigurieren',
-    unreachable: 'Server nicht erreichbar',
-    accessDenied: 'Zugang verweigert – Service Token prüfen',
-    tooSlow: 'Modell hat zu lange gebraucht',
-    invalidResponse: 'Ungültige Antwort vom Server'
+    notConfigured: 'Set up the server in the app settings',
+    unreachable: 'Server unreachable',
+    accessDenied: 'Access denied - check the service token',
+    tooSlow: 'The model took too long',
+    invalidResponse: 'Invalid response from the server'
 };
 exports.MESSAGES = MESSAGES;
 
@@ -87,7 +87,7 @@ exports.mapHttpError = function(status, text, contentType, responseUrl) {
         return makeError('unreachable', MESSAGES.unreachable + ' (' + status + ')', status);
     }
     if (status < 200 || status >= 300) {
-        return makeError('server_error', 'Serverfehler (' + status + ')', status);
+        return makeError('server_error', 'Server error (' + status + ')', status);
     }
     if (looksLikeHtml(text, contentType, responseUrl)) {
         // Access redirected us to its login page and the XHR followed the redirect.

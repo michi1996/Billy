@@ -30,8 +30,8 @@ var MAX_TOOL_ROUNDS = 3;
 var CHUNK_CHARS = 80;
 
 var MESSAGES = {
-    empty: 'Keine Antwort vom Modell erhalten.',
-    gaveUp: 'Ich konnte die Anfrage nicht abschliessen.'
+    empty: 'The model did not send an answer.',
+    gaveUp: 'Sorry, I could not finish that request.'
 };
 exports.MESSAGES = MESSAGES;
 exports.MAX_TOOL_ROUNDS = MAX_TOOL_ROUNDS;
@@ -195,7 +195,7 @@ function finish(session) {
 }
 
 function streamText(session, text) {
-    text = formatting.forWatch(text).replace(/ /g, ' ');
+    text = formatting.forWatch(text).replace(/\u202f/g, '\u00a0');
     var chunk = '';
     for (var i = 0; i < text.length; i++) {
         var next = text[i];

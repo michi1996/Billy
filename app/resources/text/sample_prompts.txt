@@ -1,7 +1,7 @@
 What's the weather?
 Set a timer for 5 minutes.
-Timer 10 Minuten
-Wecker um 6:45
+Start a 10 minute timer.
+What's the forecast for tomorrow?
 Set an alarm for 7 AM tomorrow.
 Remind me to take out the trash at 8 PM.
 What reminders do I have?

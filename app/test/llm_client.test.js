@@ -143,20 +143,20 @@ h.test('recovers <tool_call> blocks left in the content', (env) => {
 });
 
 const errorCases = [
-    ['401', (x) => x.respond(401, '{"error":"no"}'), 'Zugang verweigert – Service Token prüfen'],
-    ['403', (x) => x.respond(403, 'Forbidden', {'Content-Type': 'text/plain'}), 'Zugang verweigert – Service Token prüfen'],
-    ['HTML login page after redirect (200)', (x) => x.respond(200, '<!DOCTYPE html><html><title>Sign in</title></html>', {'Content-Type': 'text/html; charset=utf-8'}, 'https://team.cloudflareaccess.com/cdn-cgi/access/login'), 'Zugang verweigert – Service Token prüfen'],
-    ['HTML without content type', (x) => x.respond(200, '  <html>login</html>', {}), 'Zugang verweigert – Service Token prüfen'],
-    ['non-JSON body', (x) => x.respond(200, 'hello', {'Content-Type': 'text/plain'}), 'Zugang verweigert – Service Token prüfen'],
-    ['unfollowed redirect', (x) => x.respond(302, '', {}), 'Zugang verweigert – Service Token prüfen'],
-    ['524', (x) => x.respond(524, '<html>timeout</html>', {'Content-Type': 'text/html'}), 'Modell hat zu lange gebraucht'],
-    ['500', (x) => x.respond(500, '{"error":{"message":"boom"}}'), 'Serverfehler (500)'],
-    ['400', (x) => x.respond(400, '{"error":{"message":"context"}}'), 'Serverfehler (400)'],
-    ['530 tunnel down', (x) => x.respond(530, '<html>1033</html>', {'Content-Type': 'text/html'}), 'Server nicht erreichbar (530)'],
-    ['status 0', (x) => x.respond(0, ''), 'Server nicht erreichbar'],
-    ['network error', (x) => x.onerror(), 'Server nicht erreichbar'],
-    ['xhr timeout', (x) => x.ontimeout(), 'Server nicht erreichbar'],
-    ['JSON without choices', (x) => x.respond(200, '{"object":"chat.completion"}'), 'Ungültige Antwort vom Server']
+    ['401', (x) => x.respond(401, '{"error":"no"}'), 'Access denied - check the service token'],
+    ['403', (x) => x.respond(403, 'Forbidden', {'Content-Type': 'text/plain'}), 'Access denied - check the service token'],
+    ['HTML login page after redirect (200)', (x) => x.respond(200, '<!DOCTYPE html><html><title>Sign in</title></html>', {'Content-Type': 'text/html; charset=utf-8'}, 'https://team.cloudflareaccess.com/cdn-cgi/access/login'), 'Access denied - check the service token'],
+    ['HTML without content type', (x) => x.respond(200, '  <html>login</html>', {}), 'Access denied - check the service token'],
+    ['non-JSON body', (x) => x.respond(200, 'hello', {'Content-Type': 'text/plain'}), 'Access denied - check the service token'],
+    ['unfollowed redirect', (x) => x.respond(302, '', {}), 'Access denied - check the service token'],
+    ['524', (x) => x.respond(524, '<html>timeout</html>', {'Content-Type': 'text/html'}), 'The model took too long'],
+    ['500', (x) => x.respond(500, '{"error":{"message":"boom"}}'), 'Server error (500)'],
+    ['400', (x) => x.respond(400, '{"error":{"message":"context"}}'), 'Server error (400)'],
+    ['530 tunnel down', (x) => x.respond(530, '<html>1033</html>', {'Content-Type': 'text/html'}), 'Server unreachable (530)'],
+    ['status 0', (x) => x.respond(0, ''), 'Server unreachable'],
+    ['network error', (x) => x.onerror(), 'Server unreachable'],
+    ['xhr timeout', (x) => x.ontimeout(), 'Server unreachable'],
+    ['JSON without choices', (x) => x.respond(200, '{"object":"chat.completion"}'), 'Invalid response from the server']
 ];
 
 errorCases.forEach((tc) => {
@@ -177,7 +177,7 @@ h.test('watchdog fires when xhr.timeout is ignored', (env) => {
     env.clock.tick(11999);
     assert.strictEqual(c.get(), null);
     env.clock.tick(1);
-    assert.strictEqual(c.get().err.message, 'Server nicht erreichbar');
+    assert.strictEqual(c.get().err.message, 'Server unreachable');
     assert.ok(c.xhr.aborted);
 });
 
@@ -197,11 +197,11 @@ h.test('missing settings give a configuration message without a request', () => 
     let err = null;
     newClient(xhrs).complete(request(), function(e) { err = e; });
     assert.strictEqual(xhrs.length, 0);
-    assert.strictEqual(err.message, 'Server in den Einstellungen konfigurieren');
+    assert.strictEqual(err.message, 'Set up the server in the app settings');
     h.settings({LLM_BASE_URL: 'https://llm.example.ch', CF_ACCESS_CLIENT_ID: 'x'});
     newClient(xhrs).complete(request(), function(e) { err = e; });
     assert.strictEqual(xhrs.length, 0);
-    assert.strictEqual(err.message, 'Server in den Einstellungen konfigurieren');
+    assert.strictEqual(err.message, 'Set up the server in the app settings');
 });
 
 h.test('timeout setting is clamped to 10-90 seconds', () => {

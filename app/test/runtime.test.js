@@ -62,7 +62,7 @@ h.test('stops after three tool rounds and forces an answer', (env) => {
     assert.strictEqual(t.client.requests.length, 4);
     assert.deepStrictEqual(t.client.requests.map((r) => r.toolChoice), ['auto', 'auto', 'auto', 'none']);
     assert.strictEqual(sentKeys(env, 'GET_ALARM_OR_TIMER').length, 3, 'tools run in exactly three rounds');
-    assert.deepStrictEqual(sentKeys(env, 'CHAT'), ['Ich konnte die Anfrage nicht abschliessen.']);
+    assert.deepStrictEqual(sentKeys(env, 'CHAT'), ['Sorry, I could not finish that request.']);
     assert.strictEqual(sentKeys(env, 'CHAT_DONE').length, 1);
 });
 
@@ -90,10 +90,10 @@ h.test('broken tool arguments go back to the model as a tool error', (env) => {
 });
 
 h.test('server errors are shown as a warning and the session closes cleanly', (env) => {
-    const err = new Error('Zugang verweigert – Service Token prüfen');
+    const err = new Error('Access denied - check the service token');
     const t = setupRun(env, [err]);
     t.run();
-    assert.deepStrictEqual(sentKeys(env, 'WARNING'), ['Zugang verweigert – Service Token prüfen']);
+    assert.deepStrictEqual(sentKeys(env, 'WARNING'), ['Access denied - check the service token']);
     assert.strictEqual(sentKeys(env, 'CHAT_DONE').length, 1);
     assert.deepStrictEqual(sentKeys(env, 'CLOSE_WAS_CLEAN'), [true]);
     assert.strictEqual(env.clock.pending(), 0);
@@ -110,7 +110,7 @@ h.test('without a configured server the watch gets a configuration message', (en
     } finally {
         delete global.XMLHttpRequest;
     }
-    assert.deepStrictEqual(sentKeys(env, 'WARNING'), ['Server in den Einstellungen konfigurieren']);
+    assert.deepStrictEqual(sentKeys(env, 'WARNING'), ['Set up the server in the app settings']);
     assert.strictEqual(sentKeys(env, 'CHAT_DONE').length, 1);
 });
 

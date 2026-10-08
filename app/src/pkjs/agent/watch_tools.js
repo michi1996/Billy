@@ -100,17 +100,17 @@ exports.getDeclarations = function() {
     ];
 };
 
-// German messages for the watch, keyed on the (English) errors from actions/alarms.js.
+// Short messages for the watch, keyed on the errors from actions/alarms.js.
 var WATCH_ERROR_MESSAGES = [
-    [/limit of eight alarms/i, 'Maximal 8 Wecker und Timer gleichzeitig – bitte zuerst einen löschen'],
-    [/already scheduled on your Pebble/i, 'Zu dieser Zeit ist auf der Uhr schon ein Wecker oder Timer geplant'],
-    [/in the past/i, 'Die Zeit liegt in der Vergangenheit'],
-    [/no alarm set for that time/i, 'Zu dieser Zeit ist kein Wecker oder Timer gestellt'],
-    [/were set/i, 'Es ist nichts gestellt'],
-    [/timed out waiting for a response from the watch/i, 'Die Uhr hat nicht geantwortet']
+    [/limit of eight alarms/i, 'At most 8 alarms and timers - delete one first'],
+    [/already scheduled on your Pebble/i, 'Something is already scheduled on the watch at that time'],
+    [/in the past/i, 'That time is in the past'],
+    [/no alarm set for that time/i, 'No alarm or timer is set for that time'],
+    [/were set/i, 'Nothing is set'],
+    [/timed out waiting for a response from the watch/i, 'The watch did not respond']
 ];
 
-exports.TIMELINE_UNAVAILABLE_MESSAGE = 'Erinnerungen nicht verfügbar – kein Timeline-Zugang';
+exports.TIMELINE_UNAVAILABLE_MESSAGE = 'Reminders unavailable - no timeline access';
 
 function withUserMessage(result) {
     if (!result || !result.error) {

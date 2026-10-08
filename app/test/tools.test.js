@@ -58,14 +58,14 @@ h.test('the eight-wakeup limit is reported to model and user', (env) => {
     }
     const result = t.exec('set_timer', {duration_seconds: 600});
     assert.strictEqual(result.error, 'The limit of eight alarms was already reached.');
-    assert.strictEqual(result.user_message, 'Maximal 8 Wecker und Timer gleichzeitig – bitte zuerst einen löschen');
+    assert.strictEqual(result.user_message, 'At most 8 alarms and timers - delete one first');
 });
 
-h.test('a wakeup collision is reported in German too', (env) => {
+h.test('a wakeup collision gets a user message too', (env) => {
     const t = setup(env);
     t.watch.forcedResult = -8;
     const result = t.exec('set_alarm', {time: '2026-10-08T07:00:00+02:00'});
-    assert.strictEqual(result.user_message, 'Zu dieser Zeit ist auf der Uhr schon ein Wecker oder Timer geplant');
+    assert.strictEqual(result.user_message, 'Something is already scheduled on the watch at that time');
 });
 
 h.test('get_timers and delete_timer round trip', (env) => {
@@ -86,7 +86,7 @@ h.test('set_reminder without a timeline token returns a clean error', (env) => {
     env.pebble.timelineTokenOk = false;
     const result = t.exec('set_reminder', {what: 'Müll', time: '2026-10-08T20:00:00+02:00'});
     assert.ok(/timeline is not available/.test(result.error));
-    assert.strictEqual(result.user_message, 'Erinnerungen nicht verfügbar – kein Timeline-Zugang');
+    assert.strictEqual(result.user_message, 'Reminders unavailable - no timeline access');
     assert.strictEqual(t.xhrs.length, 0, 'no pin request');
     assert.strictEqual(env.storage.getItem('billy_reminders'), null, 'nothing stored');
 });

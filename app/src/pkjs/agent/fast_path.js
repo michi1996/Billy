@@ -91,8 +91,8 @@ function timerLanguage(text, amount, unitWord) {
 function normalize(prompt) {
     return String(prompt || '')
         .toLowerCase()
-        .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
-        .replace(/[‐-―]/g, '-')
+        .replace(/\u00e4/g, 'ae').replace(/\u00f6/g, 'oe').replace(/\u00fc/g, 'ue').replace(/\u00df/g, 'ss')
+        .replace(/[\u2010-\u2015]/g, '-')
         .replace(/[!?,;"']+/g, ' ')
         .replace(/\.+\s*$/, '')
         .replace(/\s+/g, ' ')
@@ -177,12 +177,12 @@ function durationText(command, lang) {
 exports.confirmation = function(command, lang) {
     if (command.kind === 'timer') {
         return lang === 'de' ?
-            'Timer für ' + durationText(command, 'de') + ' gestellt.' :
+            'Timer f\u00fcr ' + durationText(command, 'de') + ' gestellt.' :
             'Timer set for ' + durationText(command, 'en') + '.';
     }
     var clockText = timeFormat.formatLocalClock(command.ms);
     if (lang === 'de') {
-        return 'Wecker für ' + (command.tomorrow ? 'morgen' : 'heute') + ' ' + clockText + ' gestellt.';
+        return 'Wecker f\u00fcr ' + (command.tomorrow ? 'morgen' : 'heute') + ' ' + clockText + ' gestellt.';
     }
     return 'Alarm set for ' + (command.tomorrow ? 'tomorrow' : 'today') + ' at ' + clockText + '.';
 };
@@ -191,7 +191,7 @@ function failureText(result, lang) {
     if (result && result.user_message) {
         return result.user_message;
     }
-    return lang === 'de' ? 'Das hat nicht geklappt.' : 'That did not work.';
+    return 'That did not work.';
 }
 
 // Returns true if the prompt was handled here. `done(text, isError)` receives the reply.

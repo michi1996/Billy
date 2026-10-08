@@ -174,7 +174,7 @@ h.test('reply language follows the setting, otherwise the spoken language', (env
     assert.strictEqual(runSession(env, 'Timer für eine Stunde').chat, 'Timer für 1 Stunde gestellt.');
 });
 
-h.test('wakeup errors are shown as a German warning', (env) => {
+h.test('wakeup errors are shown as a warning', (env) => {
     h.setNow(NOW);
     const watch = new FakeWatch(env, NOW / 1000);
     watch.forcedResult = -7;
@@ -183,7 +183,7 @@ h.test('wakeup errors are shown as a German warning', (env) => {
     new Runtime(new Session('Timer 5 Minuten', 't'), {client: new h.ScriptedClient([])}).run();
     watch.flush();
     const warnings = env.pebble.sent.filter((m) => 'WARNING' in m).map((m) => m.WARNING);
-    assert.deepStrictEqual(warnings, ['Maximal 8 Wecker und Timer gleichzeitig – bitte zuerst einen löschen']);
+    assert.deepStrictEqual(warnings, ['At most 8 alarms and timers - delete one first']);
 });
 
 h.test('fast path can be switched off', (env) => {
