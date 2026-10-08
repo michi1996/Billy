@@ -121,7 +121,7 @@ h.test('secret Clay fields are password inputs and not AppMessage keys', () => {
         assert.strictEqual(item.attributes.type, 'password');
         assert.ok(!(key in h.messageKeys), key + ' must not be a package.json messageKey');
     });
-    ['LLM_BASE_URL', 'LLM_MODEL', 'LLM_TIMEOUT_SECONDS', 'FAST_PATH_ENABLED', 'EMULATOR_REAL_SERVER'].forEach((key) => {
+    ['LLM_BASE_URL', 'LLM_MODEL', 'LLM_TIMEOUT_SECONDS', 'FAST_PATH_ENABLED', 'STREAM_ANSWERS', 'EMULATOR_REAL_SERVER'].forEach((key) => {
         assert.ok(items.find((i) => i.messageKey === key), key + ' missing');
         assert.ok(!(key in h.messageKeys), key + ' must not be sent to the watch');
     });

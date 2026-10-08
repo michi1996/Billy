@@ -57,7 +57,8 @@ Runtime.prototype.run = function() {
         threadId: threadId,
         messages: messages,
         tools: tools.getDeclarations(),
-        progress: startProgress(session)
+        progress: startProgress(session),
+        stream: config.isStreamingEnabled()
     };
     step(loop, 0);
 };
@@ -78,12 +79,22 @@ function runFastPath(session, threadId) {
 function step(loop, round) {
     // After MAX_TOOL_ROUNDS rounds of tools the model has to answer with text.
     var forceAnswer = round >= MAX_TOOL_ROUNDS;
+    var writer = loop.stream ? new StreamWriter(loop) : null;
     loop.client.complete({
         messages: loop.messages,
         tools: loop.tools,
-        toolChoice: forceAnswer ? 'none' : 'auto'
+        toolChoice: forceAnswer ? 'none' : 'auto',
+        stream: loop.stream,
+        onContent: writer ? function(text) { writer.push(text); } : undefined
     }, function(err, response) {
         if (err) {
+            if (writer && !writer.started && err.kind === 'server_error') {
+                // Possibly a server that can't stream this request; ask again the old way.
+                console.log('Streamed request failed (' + err.message + '); retrying without streaming.');
+                loop.stream = false;
+                step(loop, round);
+                return;
+            }
             loop.progress.done();
             fail(loop.session, err.message);
             return;
@@ -100,6 +111,14 @@ function step(loop, round) {
                     };
                 })
             });
+            if (writer) {
+                // Text that came with the tool call ("Let me check...") is shown in full; the
+                // progress line then closes that bubble.
+                writer.finish(response.content || '');
+                if (writer.started) {
+                    loop.progress = startProgress(loop.session);
+                }
+            }
             executeToolCalls(loop, response.toolCalls, function(stopInfo) {
                 if (stopInfo) {
                     loop.progress.done();
@@ -117,9 +136,119 @@ function step(loop, round) {
         }
         localHistory.recordTurn(loop.threadId, loop.session.prompt, text);
         loop.progress.done();
-        streamText(loop.session, text);
+        if (writer && writer.started) {
+            writer.finish(text);
+        } else {
+            streamText(loop.session, text);
+        }
         finish(loop.session);
     });
+}
+
+var TOOL_CALL_MARKER = '<tool_call>';
+// Send a piece once this much new text is ready, or at the end of a sentence or line.
+var MIN_PIECE_CHARS = 24;
+
+// Sends the answer to the watch while the model is still writing it. Pieces end at a word
+// boundary and outside markdown markers, so the cleaned-up text only ever grows. Nothing is shown
+// while the answer might still turn out to be a tool call written as text.
+function StreamWriter(loop) {
+    this.loop = loop;
+    this.raw = '';
+    this.cut = 0;
+    this.shown = '';
+    this.started = false;
+    this.stopped = false;
+}
+
+StreamWriter.prototype.push = function(delta) {
+    if (this.stopped) {
+        return;
+    }
+    this.raw += delta;
+    var limit = this.raw.indexOf(TOOL_CALL_MARKER);
+    if (limit !== -1) {
+        this.stopped = true;
+    } else {
+        limit = this.raw.length;
+    }
+    if (!this.started) {
+        var lead = this.raw.replace(/^\s+/, '');
+        if (!lead || lead.length < TOOL_CALL_MARKER.length && TOOL_CALL_MARKER.indexOf(lead) === 0) {
+            return;
+        }
+    }
+    // Before a tool call written as text everything up to it can go; otherwise keep back the last
+    // word, which may still be growing.
+    var cut = this.stopped && markersBalanced(this.raw, limit) ? limit : safeCut(this.raw, limit);
+    var fresh = this.raw.substring(this.cut, cut);
+    if (fresh.length < MIN_PIECE_CHARS && !/[.!?:]\s|\n/.test(fresh) && !this.stopped) {
+        return;
+    }
+    this.show(formatting.cleanForWatch(this.raw.substring(0, cut), true));
+    this.cut = cut;
+};
+
+// Sends what is still missing of the final answer.
+StreamWriter.prototype.finish = function(text) {
+    this.show(formatting.forWatch(text));
+};
+
+StreamWriter.prototype.show = function(cleaned) {
+    var addition;
+    if (cleaned.indexOf(this.shown) === 0) {
+        addition = cleaned.substring(this.shown.length);
+    } else {
+        // The cleanup changed text that is already on the watch (should not happen).
+        console.log('Streamed text diverged; sending the rest by position.');
+        addition = cleaned.substring(Math.min(this.shown.length, cleaned.length));
+    }
+    if (!addition) {
+        return;
+    }
+    if (!this.started) {
+        this.started = true;
+        this.loop.progress.done();
+    }
+    this.shown = cleaned;
+    sendChunks(this.loop.session, addition);
+};
+
+// Where the text before `limit` can be cut: the last start of a word with balanced markdown
+// markers (*, _ and `) before it. One pass over the text.
+function safeCut(raw, limit) {
+    var cut = 0;
+    scanMarkers(raw, limit, function(i, balanced) {
+        if (balanced && i > 0 && /\s/.test(raw.charAt(i - 1)) && !/\s/.test(raw.charAt(i))) {
+            cut = i;
+        }
+    });
+    return cut;
+}
+
+function markersBalanced(raw, limit) {
+    return scanMarkers(raw, limit, function() {});
+}
+
+// Calls visit(i, balanced) for each position before `limit`, where `balanced` says whether the
+// markers before position i are paired up. A "* " at the start of a line is a list bullet, not a
+// marker. Returns whether the markers before `limit` are balanced.
+function scanMarkers(raw, limit, visit) {
+    var counts = {star: 0, underscore: 0, backtick: 0};
+    var lineStart = true;
+    for (var i = 0; i < limit; i++) {
+        var c = raw.charAt(i);
+        visit(i, counts.star % 2 === 0 && counts.underscore % 2 === 0 && counts.backtick % 2 === 0);
+        if (c === '*' && !(lineStart && raw.charAt(i + 1) === ' ')) {
+            counts.star++;
+        } else if (c === '_') {
+            counts.underscore++;
+        } else if (c === '`') {
+            counts.backtick++;
+        }
+        lineStart = c === '\n' || (lineStart && (c === ' ' || c === '\t'));
+    }
+    return counts.star % 2 === 0 && counts.underscore % 2 === 0 && counts.backtick % 2 === 0;
 }
 
 // Runs the calls one after another and appends a tool message for each. Stops early (and
@@ -195,7 +324,12 @@ function finish(session) {
 }
 
 function streamText(session, text) {
-    text = formatting.forWatch(text).replace(/\u202f/g, '\u00a0');
+    sendChunks(session, formatting.forWatch(text));
+}
+
+// Sends text in pieces of at most CHUNK_CHARS characters (the watch appends them).
+function sendChunks(session, text) {
+    text = text.replace(/\u202f/g, '\u00a0');
     var chunk = '';
     for (var i = 0; i < text.length; i++) {
         var next = text[i];

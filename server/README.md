@@ -178,6 +178,7 @@ The watch shows the server's own error text after the status code; the app log
 | `Server unreachable (530)` / `(502)` | The tunnel or llama-server is down; check `cloudflared` and llama-server. |
 | `The model took too long` | Cloudflare's 100 s limit (HTTP 524). Use a smaller quantisation, keep `-np 1` for the prompt cache, or check that the model runs on the GPU. |
 | `Server error (404): …` | Wrong URL or path. Enter only the base URL; Buddy appends `/v1/chat/completions`. |
+| The answer only appears at the end | Expected on iPhone (the Pebble app reads the whole response first). On Android, check the app log: `Streamed request failed …; retrying without streaming` means the server rejected `stream: true` with tools – update llama-server. Streaming can be switched off under *Show answers while they are written*. |
 
 Other OpenAI-compatible servers (e.g. Ollama, LM Studio, vLLM) also work if they support tool
 calls. There the *Model* setting must match the name of the loaded model.

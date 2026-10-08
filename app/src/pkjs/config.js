@@ -128,6 +128,11 @@ exports.isFastPathEnabled = function() {
     return readBoolean('FAST_PATH_ENABLED', true);
 }
 
+// Show the answer on the watch while the model is still writing it.
+exports.isStreamingEnabled = function() {
+    return readBoolean('STREAM_ANSWERS', true);
+};
+
 exports.isEmulatorRealServerEnabled = function() {
     return readBoolean('EMULATOR_REAL_SERVER', false);
 }

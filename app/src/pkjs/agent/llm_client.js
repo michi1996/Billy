@@ -62,7 +62,7 @@ exports.buildBody = function(settings, request) {
     }
     body.temperature = 0.2;
     body.max_tokens = request.maxTokens || 300;
-    body.stream = false;
+    body.stream = !!request.stream;
     body.cache_prompt = true;
     return body;
 };
@@ -218,6 +218,118 @@ exports.parseResponse = function(json) {
     };
 };
 
+// Reads a streamed answer (server-sent events): "data: {chunk}" lines with deltas, "data: [DONE]"
+// at the end, and "error: {...}" from llama-server if generation fails. Text deltas are handed to
+// onContent as they arrive; toJson() gives the whole answer in the non-streamed format.
+function StreamParser(onContent) {
+    this.onContent = onContent;
+    this.offset = 0;
+    this.pending = '';
+    this.sawData = false;
+    this.content = '';
+    this.toolCalls = [];
+    this.finishReason = null;
+    this.model = null;
+    this.error = null;
+}
+
+// Takes the whole response text received so far. Returns true if something new arrived.
+StreamParser.prototype.feed = function(text) {
+    if (text.length <= this.offset) {
+        return false;
+    }
+    this.pending += text.substring(this.offset);
+    this.offset = text.length;
+    var lines = this.pending.split('\n');
+    this.pending = lines.pop();
+    for (var i = 0; i < lines.length; i++) {
+        this.line(lines[i]);
+    }
+    return true;
+};
+
+StreamParser.prototype.end = function() {
+    if (this.pending) {
+        this.line(this.pending);
+        this.pending = '';
+    }
+};
+
+StreamParser.prototype.line = function(line) {
+    var match = /^(data|error):\s?(.*?)\r?$/.exec(line);
+    if (!match || match[2] === '[DONE]') {
+        return;
+    }
+    var chunk;
+    try {
+        chunk = JSON.parse(match[2]);
+    } catch (e) {
+        return;
+    }
+    if (match[1] === 'error' || (chunk && chunk.error)) {
+        var error = chunk && chunk.error !== undefined ? chunk.error : chunk;
+        this.error = typeof error === 'string' ? error : (error && error.message) || 'generation failed';
+        return;
+    }
+    if (!chunk) {
+        return;
+    }
+    this.sawData = true;
+    if (typeof chunk.model === 'string') {
+        this.model = chunk.model;
+    }
+    var choice = chunk.choices && chunk.choices[0];
+    if (!choice) {
+        return;
+    }
+    var delta = choice.delta || choice.message || {};
+    if (typeof delta.content === 'string' && delta.content) {
+        this.content += delta.content;
+        this.onContent(delta.content);
+    }
+    var calls = Array.isArray(delta.tool_calls) ? delta.tool_calls : [];
+    for (var i = 0; i < calls.length; i++) {
+        this.addToolCall(calls[i], i);
+    }
+    if (choice.finish_reason) {
+        this.finishReason = choice.finish_reason;
+    }
+};
+
+// Tool calls arrive in pieces: id and name first, then the arguments a few characters at a time.
+StreamParser.prototype.addToolCall = function(part, position) {
+    var index = typeof part.index === 'number' ? part.index : position;
+    var call = this.toolCalls[index];
+    if (!call) {
+        call = this.toolCalls[index] = {id: '', name: '', arguments: ''};
+    }
+    var fn = part['function'] || {};
+    if (part.id) {
+        call.id = String(part.id);
+    }
+    if (typeof fn.name === 'string') {
+        call.name += fn.name;
+    }
+    if (typeof fn.arguments === 'string') {
+        call.arguments += fn.arguments;
+    }
+};
+
+StreamParser.prototype.toJson = function() {
+    var message = {role: 'assistant', content: this.content};
+    var calls = [];
+    for (var i = 0; i < this.toolCalls.length; i++) {
+        var call = this.toolCalls[i];
+        if (call && call.name) {
+            calls.push({id: call.id, type: 'function', 'function': {name: call.name, arguments: call.arguments}});
+        }
+    }
+    if (calls.length) {
+        message.tool_calls = calls;
+    }
+    return {model: this.model, choices: [{index: 0, message: message, finish_reason: this.finishReason}]};
+};
+
 function defaultXhrFactory() {
     return new XMLHttpRequest();
 }
@@ -239,6 +351,8 @@ exports.createClient = function(options) {
     var unschedule = options.clearTimeout || function(handle) { clearTimeout(handle); };
     var now = options.now || function() { return Date.now(); };
 
+    // With request.stream the answer is read while it is being written and every text delta is
+    // handed to request.onContent; the callback still gets the complete answer at the end.
     function complete(request, callback) {
         var settings = getSettings();
         if (!settings.baseUrl || !settings.clientId || !settings.clientSecret) {
@@ -246,10 +360,24 @@ exports.createClient = function(options) {
             return;
         }
         var timeoutMs = settings.timeoutSeconds * 1000;
+        var streaming = !!request.stream;
         var started = now();
         var finished = false;
         var watchdog = null;
         var xhr = xhrFactory();
+        var stream = null;
+        var gotText = false;
+        if (streaming) {
+            stream = new StreamParser(function(text) {
+                if (!gotText) {
+                    gotText = true;
+                    log('LLM stream: first text after ' + (now() - started) + ' ms');
+                }
+                if (request.onContent) {
+                    request.onContent(text);
+                }
+            });
+        }
 
         function finish(err, value) {
             if (finished) {
@@ -263,12 +391,57 @@ exports.createClient = function(options) {
             callback(err, value);
         }
 
+        // Without streaming the whole request has to finish within the timeout. With streaming the
+        // server only has to keep sending: the watchdog restarts whenever new data arrives.
+        function armWatchdog() {
+            if (watchdog !== null) {
+                unschedule(watchdog);
+            }
+            watchdog = schedule(function() {
+                watchdog = null;
+                if (finished) {
+                    return;
+                }
+                log('LLM request watchdog fired after ' + (now() - started) + ' ms.');
+                try {
+                    xhr.abort();
+                } catch (e) {
+                    // Nothing else to do.
+                }
+                finish(makeError('unreachable', MESSAGES.unreachable, 0));
+            }, timeoutMs + WATCHDOG_GRACE_MS);
+        }
+
+        function readStream() {
+            if (finished || xhr.status !== 200) {
+                return;
+            }
+            var text;
+            try {
+                text = xhr.responseText || '';
+            } catch (e) {
+                return;
+            }
+            if (stream.feed(text)) {
+                armWatchdog();
+            }
+        }
+
         xhr.open('POST', exports.buildUrl(settings.baseUrl), true);
-        xhr.timeout = timeoutMs;
+        // A streamed answer may take longer than the timeout in total; the watchdog covers stalls.
+        xhr.timeout = streaming ? 0 : timeoutMs;
         xhr.setRequestHeader('Content-Type', 'application/json');
-        xhr.setRequestHeader('Accept', 'application/json');
+        xhr.setRequestHeader('Accept', streaming ? 'text/event-stream' : 'application/json');
         xhr.setRequestHeader('CF-Access-Client-Id', settings.clientId);
         xhr.setRequestHeader('CF-Access-Client-Secret', settings.clientSecret);
+        if (streaming) {
+            xhr.onprogress = readStream;
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 3) {
+                    readStream();
+                }
+            };
+        }
         xhr.onload = function() {
             if (xhr.readyState !== undefined && xhr.readyState !== 4) {
                 return;
@@ -285,12 +458,29 @@ exports.createClient = function(options) {
                 finish(httpError);
                 return;
             }
-            var json;
-            try {
-                json = JSON.parse(text);
-            } catch (e) {
-                finish(makeError('access_denied', MESSAGES.accessDenied, status));
-                return;
+            var json = null;
+            if (stream) {
+                stream.feed(text);
+                stream.end();
+                if (stream.error) {
+                    log('LLM server error: ' + clip(stream.error, 300));
+                    var streamError = makeError('server_error', 'Server error: ' + clip(stream.error, 80), status);
+                    streamError.detail = stream.error;
+                    finish(streamError);
+                    return;
+                }
+                if (stream.sawData) {
+                    json = stream.toJson();
+                }
+            }
+            if (!json) {
+                // Not streamed (streaming off, or a server that ignores it): one JSON document.
+                try {
+                    json = JSON.parse(text);
+                } catch (e) {
+                    finish(makeError('access_denied', MESSAGES.accessDenied, status));
+                    return;
+                }
             }
             var parsed = exports.parseResponse(json);
             if (!parsed) {
@@ -308,22 +498,11 @@ exports.createClient = function(options) {
             log('LLM request timed out after ' + (now() - started) + ' ms.');
             finish(makeError('unreachable', MESSAGES.unreachable, 0));
         };
-        watchdog = schedule(function() {
-            watchdog = null;
-            if (finished) {
-                return;
-            }
-            log('LLM request watchdog fired after ' + (now() - started) + ' ms.');
-            try {
-                xhr.abort();
-            } catch (e) {
-                // Nothing else to do.
-            }
-            finish(makeError('unreachable', MESSAGES.unreachable, 0));
-        }, timeoutMs + WATCHDOG_GRACE_MS);
+        armWatchdog();
 
         log('LLM request: ' + request.messages.length + ' message(s), ' +
-            (request.tools && request.tools.length ? 'tool_choice=' + (request.toolChoice || 'auto') : 'no tools'));
+            (request.tools && request.tools.length ? 'tool_choice=' + (request.toolChoice || 'auto') : 'no tools') +
+            (streaming ? ', streaming' : ''));
         xhr.send(JSON.stringify(exports.buildBody(settings, request)));
     }
 

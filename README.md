@@ -13,6 +13,8 @@ Pebble app – no companion app and no third-party cloud service.
 ## What Buddy can do
 
 - answer questions briefly, sized for the watch
+- show the answer on the watch while the model is still writing it (Pebble app on Android; on
+  iPhone the app hands over the answer in one piece)
 - set, list and delete alarms
 - set, list and delete timers
 - show a live countdown for the next timer (and the time of the next alarm) under Buddy in the

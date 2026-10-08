@@ -85,6 +85,14 @@
                 "label": "Instant timers and alarms",
                 "description": "Simple commands such as \"Set a timer for 5 minutes\" are handled on the phone without asking the model.",
                 "defaultValue": true
+            },
+            {
+                "type": "toggle",
+                "id": "STREAM_ANSWERS",
+                "messageKey": "STREAM_ANSWERS",
+                "label": "Show answers while they are written",
+                "description": "The answer appears on the watch while the model is still writing it. Works with the Pebble app on Android; on iPhone the answer still arrives in one piece.",
+                "defaultValue": true
             }
         ]
     },
