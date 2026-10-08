@@ -67,8 +67,27 @@ const alarms = [
     ['Wecker auf 06:05 stellen', '2026-10-08T06:05:00+02:00', true],
     ['Wecker um 21:46', '2026-10-08T21:46:00+02:00', true],
     ['Wecker um 21:47', '2026-10-07T21:47:00+02:00', false],
-    ['Wecker um 23 Uhr', '2026-10-07T23:00:00+02:00', false]
+    ['Wecker um 23 Uhr', '2026-10-07T23:00:00+02:00', false],
+    // English: explicit am/pm, or 24-hour times that cannot be misread
+    ['Set an alarm for 6:45 am', '2026-10-08T06:45:00+02:00', true],
+    ['set an alarm for 6:45am', '2026-10-08T06:45:00+02:00', true],
+    ['Set alarm for 10 pm', '2026-10-07T22:00:00+02:00', false],
+    ['Wake me up at 7 a.m.', '2026-10-08T07:00:00+02:00', true],
+    ['wake me at 6.30 AM please', '2026-10-08T06:30:00+02:00', true],
+    ['Please set an alarm for 12 am', '2026-10-08T00:00:00+02:00', true],
+    ['Alarm for 12:15 pm', '2026-10-08T12:15:00+02:00', true],
+    ['Alarm at 18:30', '2026-10-08T18:30:00+02:00', true],
+    ['Set my alarm for 23:05', '2026-10-07T23:05:00+02:00', false],
+    ['alarm at 07:30', '2026-10-08T07:30:00+02:00', true],
+    ['Alarm at 0:30', '2026-10-08T00:30:00+02:00', true]
 ];
+
+h.test('English alarms are English, German alarms German', () => {
+    assert.strictEqual(match('Set an alarm for 6:45 am').lang, 'en');
+    assert.strictEqual(match('Set an alarm for 6:45 am').use12h, true);
+    assert.strictEqual(match('Alarm at 18:30').use12h, false);
+    assert.strictEqual(match('Wecker um 6:45').lang, 'de');
+});
 
 alarms.forEach((tc) => {
     h.test('alarm: "' + tc[0] + '"', () => {
@@ -87,6 +106,16 @@ const passToLlm = [
     'Wecker um 25:00',
     'Wecker um 7:75',
     'set an alarm for 7:30',
+    'Set an alarm for 7',
+    'Wake me up at 7',
+    'Alarm at 12:30',
+    'alarm at 7 o\'clock',
+    'Alarm at 13 pm',
+    'Alarm at 0 am',
+    'Set an alarm for 25:00',
+    'Wake me up at 7 am tomorrow',
+    'Set an alarm for 6:45 am on Monday',
+    'Set an alarm for 6:45 am called Gym',
     'Timer für 5 Minuten für die Pizza',
     'Pizza-Timer 10 Minuten',
     'Timer 1,5 Stunden',
@@ -172,6 +201,26 @@ h.test('reply language follows the setting, otherwise the spoken language', (env
     assert.strictEqual(runSession(env, 'Timer 90 Sekunden').chat, 'Timer für 90 Sekunden gestellt.');
     env.pebble.sent = [];
     assert.strictEqual(runSession(env, 'Timer für eine Stunde').chat, 'Timer für 1 Stunde gestellt.');
+    env.pebble.sent = [];
+    assert.strictEqual(runSession(env, 'Set an alarm for 6:45 am').chat, 'Alarm set for tomorrow at 6:45 AM.');
+    env.pebble.sent = [];
+    assert.strictEqual(runSession(env, 'Wake me up at 10 pm').chat, 'Alarm set for today at 10:00 PM.');
+    env.pebble.sent = [];
+    assert.strictEqual(runSession(env, 'Alarm at 18:30').chat, 'Alarm set for tomorrow at 18:30.');
+    env.pebble.sent = [];
+    assert.strictEqual(runSession(env, 'Set an alarm for 6:45 am', {LANGUAGE_CODE: 'de_DE'}).chat, 'Wecker für morgen 06:45 gestellt.');
+});
+
+h.test('an English alarm reaches the watch at the right time', (env) => {
+    const t = runSession(env, 'Set an alarm for 12 am');
+    assert.strictEqual(t.watch.alarms.length, 1);
+    assert.strictEqual(t.watch.alarms[0].time, Date.UTC(2026, 9, 7, 22, 0) / 1000);
+    assert.strictEqual(t.chat, 'Alarm set for tomorrow at 12:00 AM.');
+});
+
+h.test('DST end: an English alarm after the switch is at 7:00 AM CET', () => {
+    const m = match('Set an alarm for 7 am', Date.UTC(2026, 9, 24, 20, 0)); // 22:00 CEST
+    assert.strictEqual(iso(m.ms), '2026-10-25T07:00:00+01:00');
 });
 
 h.test('wakeup errors are shown as a warning', (env) => {

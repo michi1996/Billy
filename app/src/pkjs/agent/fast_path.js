@@ -52,6 +52,9 @@ var DE_TAIL = '(?: bitte)?(?: (?:an|ein|stellen|setzen|starten|machen))?(?: bitt
 var EN_LEAD = '(?:please )?(?:(?:set|start|make|create|put on)(?: me)? )?(?:a |an )?';
 var EN_TAIL = '(?: please)?(?: on)?(?: please)?';
 
+var EN_ALARM_LEAD = '(?:please )?(?:(?:(?:set|make|create|add|put on)(?: me)?(?: an| a| the| my)? )?alarm (?:for|at)|wake me(?: up)? at)';
+var EN_ALARM_TAIL = '(?: please)?';
+
 var DE_HALF_HOUR = '(?:eine )?halbe stunde';
 var EN_HALF_HOUR = 'half an hour|half hour|a half hour';
 
@@ -66,7 +69,11 @@ var PATTERNS = [
     {lang: 'en', kind: 'timer', regex: new RegExp('^' + EN_LEAD + '(' + EN_NUMBER + ')[ -](' + EN_UNIT + ')[ -]?timer' + EN_TAIL + '$')},
     // "Wecker um 6:45", "Stell einen Wecker für 7 Uhr", "Wecker um 7 Uhr 30", "Weck mich um 7.30 Uhr"
     {lang: 'de', kind: 'alarm', regex: new RegExp('^(?:' + DE_LEAD + 'wecker (?:um|fuer|auf)|(?:bitte )?wecke? mich(?: bitte)? um) ' +
-        '(?:(\\d{1,2})[:.](\\d{2})(?: uhr)?|(\\d{1,2}) uhr(?: (\\d{1,2}))?)' + DE_TAIL + '$')}
+        '(?:(\\d{1,2})[:.](\\d{2})(?: uhr)?|(\\d{1,2}) uhr(?: (\\d{1,2}))?)' + DE_TAIL + '$')},
+    // "Set an alarm for 6:45 am", "Wake me up at 7 pm", "Alarm at 18:30". Times like "7:30"
+    // without am/pm are ambiguous and go to the model.
+    {lang: 'en', kind: 'alarm_en', regex: new RegExp('^' + EN_ALARM_LEAD + ' ' +
+        '(?:(\\d{1,2})(?:[:.](\\d{2}))? ?(a\\.?m|p\\.?m)\\.?|(\\d{1,2})[:.](\\d{2}))' + EN_ALARM_TAIL + '$')}
 ];
 
 // Words that only occur in one of the two languages. "timer", "min", "minute" and digits are shared.
@@ -122,10 +129,9 @@ function matchTimer(pattern, m, text) {
     return {kind: 'timer', lang: timerLanguage(text, amount, m[2]), seconds: seconds, amount: amount, unit: unit};
 }
 
-function matchAlarm(pattern, m, nowMs) {
-    var hour = parseInt(m[1] !== undefined ? m[1] : m[3], 10);
-    var minute = m[2] !== undefined ? parseInt(m[2], 10) : (m[4] !== undefined ? parseInt(m[4], 10) : 0);
-    if (isNaN(hour) || hour > 23 || minute > 59) {
+// The next time the clock shows hour:minute (today, or tomorrow if that has passed).
+function alarmAt(hour, minute, nowMs, lang, use12h) {
+    if (isNaN(hour) || isNaN(minute) || hour > 23 || minute > 59) {
         return null;
     }
     var now = new Date(nowMs);
@@ -135,7 +141,34 @@ function matchAlarm(pattern, m, nowMs) {
         target = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, hour, minute, 0).getTime();
         tomorrow = true;
     }
-    return {kind: 'alarm', lang: pattern.lang, ms: target, tomorrow: tomorrow};
+    return {kind: 'alarm', lang: lang, ms: target, tomorrow: tomorrow, use12h: use12h};
+}
+
+function matchGermanAlarm(pattern, m, nowMs) {
+    var hour = parseInt(m[1] !== undefined ? m[1] : m[3], 10);
+    var minute = m[2] !== undefined ? parseInt(m[2], 10) : (m[4] !== undefined ? parseInt(m[4], 10) : 0);
+    return alarmAt(hour, minute, nowMs, pattern.lang, false);
+}
+
+function matchEnglishAlarm(pattern, m, nowMs) {
+    var hour;
+    var minute;
+    if (m[3]) {
+        hour = parseInt(m[1], 10);
+        minute = m[2] !== undefined ? parseInt(m[2], 10) : 0;
+        if (hour < 1 || hour > 12) {
+            return null;
+        }
+        hour = hour % 12 + (m[3].charAt(0) === 'p' ? 12 : 0);
+        return alarmAt(hour, minute, nowMs, pattern.lang, true);
+    }
+    // Without am/pm only unambiguous 24-hour times: 0:xx, 13:00-23:59 or a leading zero (07:30).
+    hour = parseInt(m[4], 10);
+    minute = parseInt(m[5], 10);
+    if (!(hour === 0 || hour >= 13 || (m[4].length === 2 && m[4].charAt(0) === '0'))) {
+        return null;
+    }
+    return alarmAt(hour, minute, nowMs, pattern.lang, false);
 }
 
 // Returns null or a description of the command, e.g. {kind: 'timer', seconds: 300, lang: 'de'}.
@@ -149,7 +182,13 @@ exports.match = function(prompt, nowMs) {
         if (!m) {
             continue;
         }
-        return PATTERNS[i].kind === 'timer' ? matchTimer(PATTERNS[i], m, text) : matchAlarm(PATTERNS[i], m, nowMs);
+        if (PATTERNS[i].kind === 'timer') {
+            return matchTimer(PATTERNS[i], m, text);
+        }
+        if (PATTERNS[i].kind === 'alarm_en') {
+            return matchEnglishAlarm(PATTERNS[i], m, nowMs);
+        }
+        return matchGermanAlarm(PATTERNS[i], m, nowMs);
     }
     return null;
 };
@@ -174,16 +213,22 @@ function durationText(command, lang) {
     return amount + ' ' + names[unit][amount === 1 ? 0 : 1];
 }
 
+function twelveHourClock(ms) {
+    var d = new Date(ms);
+    var hour = d.getHours() % 12 || 12;
+    return hour + ':' + timeFormat.pad2(d.getMinutes()) + (d.getHours() < 12 ? ' AM' : ' PM');
+}
+
 exports.confirmation = function(command, lang) {
     if (command.kind === 'timer') {
         return lang === 'de' ?
             'Timer f\u00fcr ' + durationText(command, 'de') + ' gestellt.' :
             'Timer set for ' + durationText(command, 'en') + '.';
     }
-    var clockText = timeFormat.formatLocalClock(command.ms);
     if (lang === 'de') {
-        return 'Wecker f\u00fcr ' + (command.tomorrow ? 'morgen' : 'heute') + ' ' + clockText + ' gestellt.';
+        return 'Wecker f\u00fcr ' + (command.tomorrow ? 'morgen' : 'heute') + ' ' + timeFormat.formatLocalClock(command.ms) + ' gestellt.';
     }
+    var clockText = command.use12h ? twelveHourClock(command.ms) : timeFormat.formatLocalClock(command.ms);
     return 'Alarm set for ' + (command.tomorrow ? 'tomorrow' : 'today') + ' at ' + clockText + '.';
 };
 

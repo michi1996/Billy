@@ -20,8 +20,8 @@ Pebble app – no companion app and no third-party cloud service.
   dictation confirmation)
 - weather with a weather card (Open-Meteo)
 - follow-up questions with an option picker on the watch
-- simple timers and alarms ("Set a timer for 5 minutes") instantly, without the model
-  (can be switched off)
+- simple timers and alarms ("Set a timer for 5 minutes", "Set an alarm for 6:45 am") instantly,
+  without the model (can be switched off; ambiguous times like "7:30" without am/pm go to the model)
 
 ## Setup
 
