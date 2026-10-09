@@ -13,6 +13,8 @@ Pebble app – no companion app and no third-party cloud service.
 ## What Buddy can do
 
 - answer questions briefly, sized for the watch
+- wake the model as soon as Buddy opens to talk, so it is ready by the time you finish speaking
+  (also loads it again if your server unloads idle models)
 - show the answer on the watch while the model is still writing it (Pebble app on Android; on
   iPhone the app hands over the answer in one piece)
 - set, list and delete alarms

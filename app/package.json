@@ -104,7 +104,8 @@
       "CONFIRM_TRANSCRIPTS",
       "ACTION_SETTINGS_UPDATED",
       "QUICK_PROMPTS_LANG",
-      "QUICK_PROMPTS_CUSTOM"
+      "QUICK_PROMPTS_CUSTOM",
+      "WARMUP"
     ],
     "resources": {
       "media": [

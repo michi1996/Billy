@@ -23,6 +23,7 @@ var config = require('./config');
 var reminders = require('./reminders');
 var settingsPage = require('./settings_page');
 var quickPrompts = require('./quick_prompts');
+var warmup = require('./warmup');
 var messageQueue = require('./lib/message_queue').Queue;
 var package_json = require('package.json');
 
@@ -45,6 +46,11 @@ function handleAppMessage(e) {
         console.log("Starting a new Session...");
         var s = new session.Session(data.PROMPT, data.THREAD_ID);
         s.run();
+        return;
+    }
+
+    if (data.WARMUP) {
+        warmup.run();
         return;
     }
 

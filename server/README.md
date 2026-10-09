@@ -55,6 +55,9 @@ llama-server \
   (`Authorization: Bearer`). Buddy sends it when you enter it under *llama-server API key*.
   This is a second lock behind Cloudflare Access, in case the Access policy is ever changed by
   mistake. For the smoke test, set `LLM_API_KEY` as well.
+- Unloading idle models (e.g. llama-swap with `ttl`) is fine: when Buddy opens to talk, it sends
+  the fixed part of its prompt ahead (one token, at most once a minute), which loads the model
+  and fills the prompt cache while you are still speaking.
 - **Don't quantise the KV cache aggressively.** The default is f16. If VRAM is tight,
   `-ctk q8_0 -ctv q8_0` is still fine; `q4_0` for the KV cache noticeably hurts tool calls and
   date arithmetic.

@@ -223,6 +223,10 @@ static void prv_handle_app_message_outbox_failed(DictionaryIterator *iterator, A
     prv_schedule_input_retry(manager, prompt_tuple->value->cstring);
     return;
   }
+  if (dict_find(iterator, MESSAGE_KEY_WARMUP)) {
+    // The warm-up request (warmup.c) retries on its own and is not part of the conversation.
+    return;
+  }
   conversation_add_error(manager->conversation, "Sending to service failed.");
   prv_conversation_updated(manager, true);
 }

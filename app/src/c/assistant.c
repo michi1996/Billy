@@ -22,6 +22,7 @@
 #include "image_manager/image_manager.h"
 #include "alarms/manager.h"
 #include "glance/glance.h"
+#include "warmup.h"
 #include "version/version.h"
 #include "settings/settings.h"
 
@@ -86,6 +87,8 @@ int main(void) {
         root_window_push(s_root_window);
       }
       release_notes_maybe_push();
+      // Opened to talk: let the phone wake the model while the user is still speaking.
+      warmup_request();
     }
   }
 
