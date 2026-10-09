@@ -21,8 +21,9 @@ function stringList(text) {
     return text.match(/'[^']*'/g).map((s) => s.slice(1, -1));
 }
 
-h.test('the page uses the same secret placeholder as the settings handler', () => {
+h.test('the page uses the same secret placeholder and encoding marker as the settings handler', () => {
     assert.strictEqual(constant(source, 'SECRET_PLACEHOLDER'), "'" + h.pkjs('settings_page').SECRET_PLACEHOLDER + "'");
+    assert.strictEqual(constant(source, 'PAGE_ENCODED_PREFIX'), "'" + h.pkjs('settings_page').PAGE_ENCODED_PREFIX + "'");
     assert.deepStrictEqual(stringList(constant(source, 'SECRET_KEYS')), h.pkjs('settings_page').SECRET_KEYS);
 });
 

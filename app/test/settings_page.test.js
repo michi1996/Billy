@@ -129,3 +129,21 @@ h.test('secret Clay fields are password inputs and not AppMessage keys', () => {
         assert.ok(key in h.messageKeys, key + ' must be a package.json messageKey');
     });
 });
+
+h.test('values that would break the config page travel encoded and come back unchanged', (env) => {
+    const risky = "Was sind 5$' in CHF? </script>\u2028ok";
+    h.settings(Object.assign({}, ALL, {CUSTOM_PROMPT_1: risky, CUSTOM_PROMPT_2: 'harmlos'}));
+    const clay = install(env);
+    env.pebble.dispatch('showConfiguration', {});
+    const page = h.pkjs('settings_page');
+    const sent = clay.pageSettings.CUSTOM_PROMPT_1;
+    assert.ok(sent.indexOf(page.PAGE_ENCODED_PREFIX) === 0, sent);
+    assert.ok(!/[$<>\u2028\u2029]/.test(sent), 'still risky: ' + sent);
+    assert.strictEqual(clay.pageSettings.CUSTOM_PROMPT_2, 'harmlos');
+    assert.strictEqual(JSON.parse(env.storage.getItem('clay-settings')).CUSTOM_PROMPT_1, risky);
+    // The page normally decodes it; if it comes back encoded anyway, it is decoded on save.
+    env.pebble.dispatch('webviewclosed', {response: pageResponse(Object.assign({}, ALL, {CUSTOM_PROMPT_1: sent}))});
+    assert.strictEqual(JSON.parse(env.storage.getItem('clay-settings')).CUSTOM_PROMPT_1, risky);
+    env.pebble.dispatch('webviewclosed', {response: pageResponse(Object.assign({}, ALL, {CUSTOM_PROMPT_1: risky}))});
+    assert.strictEqual(JSON.parse(env.storage.getItem('clay-settings')).CUSTOM_PROMPT_1, risky);
+});

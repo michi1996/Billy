@@ -22,6 +22,9 @@ module.exports = function() {
 
     // Must match settings_page.SECRET_PLACEHOLDER: the page gets this instead of a stored secret.
     var SECRET_PLACEHOLDER = '__buddy_unchanged__';
+    // Must match settings_page.PAGE_ENCODED_PREFIX: values with characters that would break the
+    // page arrive URL-encoded behind this marker.
+    var PAGE_ENCODED_PREFIX = '__buddy_encoded__:';
     var SECRET_KEYS = ['CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET'];
     // Must match quick_prompts.js.
     var CUSTOM_KEYS = ['CUSTOM_PROMPT_1', 'CUSTOM_PROMPT_2', 'CUSTOM_PROMPT_3',
@@ -171,6 +174,22 @@ module.exports = function() {
                 'They are only sent to your own server, never to the watch.'}));
         }
     });
+
+    // --- Stored values ---
+
+    function decodeStoredValues() {
+        clayConfig.getAllItems().forEach(function(item) {
+            var value = item.messageKey ? item.get() : null;
+            if (typeof value !== 'string' || value.indexOf(PAGE_ENCODED_PREFIX) !== 0) {
+                return;
+            }
+            try {
+                item.set(decodeURIComponent(value.substring(PAGE_ENCODED_PREFIX.length)));
+            } catch (e) {
+                item.set('');
+            }
+        });
+    }
 
     // --- Unsaved changes ---
 
@@ -519,6 +538,8 @@ module.exports = function() {
     document.head.appendChild(style);
 
     clayConfig.on(clayConfig.EVENTS.AFTER_BUILD, function() {
+        decodeStoredValues();
+
         // Let the page use the full screen on phones with a notch / home indicator.
         var viewport = document.querySelector('meta[name="viewport"]');
         if (viewport && viewport.content.indexOf('viewport-fit') < 0) {

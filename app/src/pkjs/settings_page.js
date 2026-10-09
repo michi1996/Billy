@@ -29,6 +29,8 @@ var STORAGE_KEY = 'clay-settings';
 exports.SECRET_KEYS = ['CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET'];
 exports.WATCH_KEYS = ['QUICK_LAUNCH_BEHAVIOUR', 'ALARM_VIBE_PATTERN', 'TIMER_VIBE_PATTERN', 'CONFIRM_TRANSCRIPTS'];
 exports.SECRET_PLACEHOLDER = '__buddy_unchanged__';
+// Marks a value that travels URL-encoded to the config page (see encodeForPage).
+exports.PAGE_ENCODED_PREFIX = '__buddy_encoded__:';
 
 function load(storage) {
     try {
@@ -89,8 +91,39 @@ exports.buildWatchMessage = function(settings) {
     return message;
 };
 
-// Clay pastes the page data in with String#replace (where dollar patterns are special) into an
-// inline script, so text from the server must not carry those characters.
+// Clay pastes the stored values into the page with String#replace, where dollar patterns are
+// special, inside an inline script, where "</script>" ends the script and U+2028/U+2029 break
+// older engines. Values with such characters travel URL-encoded behind a marker;
+// custom_config.js decodes them on the page.
+var PAGE_RISKY = /[\u0024<>\u2028\u2029]/;
+
+exports.encodeForPage = function(settings) {
+    var encoded = copy(settings);
+    for (var key in encoded) {
+        if (encoded.hasOwnProperty(key) && typeof encoded[key] === 'string' && PAGE_RISKY.test(encoded[key])) {
+            encoded[key] = exports.PAGE_ENCODED_PREFIX + encodeURIComponent(encoded[key]);
+        }
+    }
+    return encoded;
+};
+
+// In case a value comes back still encoded (the page did not decode it).
+exports.decodeFromPage = function(settings) {
+    var decoded = copy(settings);
+    for (var key in decoded) {
+        var value = decoded[key];
+        if (decoded.hasOwnProperty(key) && typeof value === 'string' && value.indexOf(exports.PAGE_ENCODED_PREFIX) === 0) {
+            try {
+                decoded[key] = decodeURIComponent(value.substring(exports.PAGE_ENCODED_PREFIX.length));
+            } catch (e) {
+                decoded[key] = '';
+            }
+        }
+    }
+    return decoded;
+};
+
+// Text from the server for the page (display only): the same characters are simply dropped.
 function pageText(value) {
     return String(value || '').replace(/[\u0024<>]/g, '');
 }
@@ -114,7 +147,7 @@ exports.generateUrl = function(clay, storage) {
         clay.meta.userData = {serverCheck: exports.serverCheckForPage(serverCheck.lastResult(storage))};
     }
     var raw = storage.getItem(STORAGE_KEY);
-    storage.setItem(STORAGE_KEY, JSON.stringify(exports.maskSecrets(load(storage))));
+    storage.setItem(STORAGE_KEY, JSON.stringify(exports.encodeForPage(exports.maskSecrets(load(storage)))));
     try {
         return clay.generateUrl();
     } finally {
@@ -134,7 +167,7 @@ exports.handleResponse = function(clay, storage, response) {
     var previous = load(storage);
     // Parses the page response and writes the flattened values to localStorage.
     clay.getSettings(response, false);
-    var stored = exports.restoreSecrets(load(storage), previous);
+    var stored = exports.restoreSecrets(exports.decodeFromPage(load(storage)), previous);
     storage.setItem(STORAGE_KEY, JSON.stringify(stored));
     return exports.buildWatchMessage(stored);
 };
