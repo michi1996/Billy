@@ -50,7 +50,9 @@ function cleanupExpiredReminders() {
   return activeReminders;
 }
 
-function addReminder(text, time) {
+// Calls back with (null, id) once the timeline service has the pin, or with an error message.
+// Only reminders that reached the timeline are kept here.
+function addReminder(text, time, callback) {
   // Clean up expired reminders first
   cleanupExpiredReminders();
   
@@ -76,45 +78,53 @@ function addReminder(text, time) {
     }]
   };
 
-  // Insert into timeline first - if this fails it will throw
-  timeline.insertUserPin(pin);
+  // Insert into timeline first
+  timeline.insertUserPin(pin, function(error) {
+    if (error) {
+      callback(error);
+      return;
+    }
 
-  // Store reminder locally
-  var reminders = loadReminders();
-  reminders.push({
-    id: reminderId,
-    time: date,
-    what: text
+    // Store reminder locally
+    var reminders = loadReminders();
+    reminders.push({
+      id: reminderId,
+      time: date,
+      what: text
+    });
+    saveReminders(reminders);
+    callback(null, reminderId);
   });
-  saveReminders(reminders);
-  
-  return reminderId;
 }
 
-function deleteReminder(id) {
+// Calls back with (null, true) once the pin is gone, (null, false) for an unknown id, or with an
+// error message; a reminder whose pin could not be deleted stays in the list.
+function deleteReminder(id, callback) {
   // Clean up expired reminders first
   cleanupExpiredReminders();
   
-  var reminders = loadReminders();
-  var reminderIndex = -1;
-  for (var i = 0; i < reminders.length; i++) {
-    if (reminders[i].id === id) {
-      reminderIndex = i;
-      break;
+  var known = loadReminders().some(function(reminder) {
+    return reminder.id === id;
+  });
+  
+  if (!known) {
+    callback(null, false);
+    return;
+  }
+  
+  // Remove from timeline first
+  timeline.deleteUserPin(id, function(error) {
+    if (error) {
+      callback(error);
+      return;
     }
-  }
-  
-  if (reminderIndex === -1) {
-    return false;
-  }
-  
-  // Remove from timeline first - if this fails it will throw
-  timeline.deleteUserPin(id);
 
-  // Remove from local storage
-  reminders.splice(reminderIndex, 1);
-  saveReminders(reminders);
-  return true;
+    // Remove from local storage
+    saveReminders(loadReminders().filter(function(reminder) {
+      return reminder.id !== id;
+    }));
+    callback(null, true);
+  });
 }
 
 function getAllReminders() {

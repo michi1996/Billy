@@ -102,8 +102,10 @@ exports.getDeclarations = function() {
     ];
 };
 
-// Short messages for the watch, keyed on the errors from actions/alarms.js.
+// Short messages for the watch, keyed on the errors from actions/alarms.js and actions/reminders.js.
 var WATCH_ERROR_MESSAGES = [
+    [/reminder was not set/i, 'Reminder not set - timeline error'],
+    [/reminder was not deleted/i, 'Reminder not deleted - timeline error'],
     [/limit of eight alarms/i, 'At most 8 alarms and timers - delete one first'],
     [/already scheduled on your Pebble/i, 'Something is already scheduled on the watch at that time'],
     [/in the past/i, 'That time is in the past'],

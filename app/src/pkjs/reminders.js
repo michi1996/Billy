@@ -16,6 +16,8 @@
 
 var reminders = require('./lib/reminders');
 
+var DELETE_FAILED_MESSAGE = 'Reminder not deleted - timeline error. It is still in your timeline.';
+
 function handleReminderMessage(data) {
   if (data.REMINDER_LIST_REQUEST) {
     var allReminders = reminders.getAllReminders();
@@ -59,7 +61,12 @@ function handleReminderMessage(data) {
   } else if (data.REMINDER_DELETE) {
     var id = data.REMINDER_DELETE;
     try {
-      reminders.deleteReminder(id);
+      // The watch has already taken the reminder off its list; say so if the pin is still there.
+      reminders.deleteReminder(id, function(error) {
+        if (error) {
+          Pebble.showSimpleNotificationOnPebble('Buddy', DELETE_FAILED_MESSAGE);
+        }
+      });
     } catch (err) {
       console.error('Failed to delete reminder:', err);
     }

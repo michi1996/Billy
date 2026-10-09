@@ -12,14 +12,17 @@ function setup(env) {
     const Session = h.pkjs('session').Session;
     const session = new Session('test', 'thread');
     const xhrs = [];
-    return {
+    const t = {
         watch: watch,
         session: session,
         xhrs: xhrs,
+        // How the timeline service answers pin requests.
+        timelineStatus: 200,
         exec: function(name, args) {
             let result;
             h.withGlobal('XMLHttpRequest', function() {
                 const xhr = new h.MockXhr();
+                xhr.autoRespond = (x) => x.respond(t.timelineStatus, t.timelineStatus === 200 ? 'OK' : '{"error":"unavailable"}');
                 xhrs.push(xhr);
                 return xhr;
             }, () => {
@@ -31,6 +34,7 @@ function setup(env) {
             return result;
         }
     };
+    return t;
 }
 
 h.test('set_alarm sends the validated time to the watch', (env) => {
@@ -104,6 +108,33 @@ h.test('set_reminder inserts a timeline pin and keeps the near-future warning', 
     assert.strictEqual(t.watch.messages('ACTION_REMINDER_WAS_SET').length, 1);
     const far = t.exec('set_reminder', {what: 'Zahnarzt', time: '2026-10-09T09:00:00+02:00'});
     assert.deepStrictEqual(far, {status: 'ok'});
+});
+
+h.test('a pin the timeline service refuses is reported and not kept', (env) => {
+    const t = setup(env);
+    t.timelineStatus = 503;
+    const result = t.exec('set_reminder', {what: 'Zahnarzt', time: '2026-10-09T09:00:00+02:00'});
+    assert.strictEqual(result.error, 'The reminder was NOT set: the Pebble timeline service did not take it (HTTP 503).');
+    assert.strictEqual(result.user_message, 'Reminder not set - timeline error');
+    assert.strictEqual(t.watch.messages('ACTION_REMINDER_WAS_SET').length, 0);
+    assert.strictEqual(t.exec('get_reminders', {}).reminders.length, 0);
+    env.logs.forEach((line) => assert.ok(line.indexOf('timeline-token') === -1, line));
+});
+
+h.test('a reminder whose pin cannot be deleted stays', (env) => {
+    const t = setup(env);
+    t.exec('set_reminder', {what: 'Zahnarzt', time: '2026-10-09T09:00:00+02:00'});
+    const id = t.exec('get_reminders', {}).reminders[0].id;
+    t.timelineStatus = 500;
+    const result = t.exec('delete_reminder', {id: id});
+    assert.strictEqual(result.user_message, 'Reminder not deleted - timeline error');
+    assert.ok(/NOT deleted.*HTTP 500/.test(result.error), result.error);
+    assert.strictEqual(t.watch.messages('ACTION_REMINDER_DELETED').length, 0);
+    assert.strictEqual(t.exec('get_reminders', {}).reminders.length, 1);
+    // A pin the service no longer knows is as good as deleted.
+    t.timelineStatus = 404;
+    assert.deepStrictEqual(t.exec('delete_reminder', {id: id}), {status: 'ok'});
+    assert.strictEqual(t.exec('get_reminders', {}).reminders.length, 0);
 });
 
 h.test('the timeline token check gives up after a few seconds', (env) => {

@@ -69,7 +69,9 @@ timers and alarms still work.
 - At most **8 alarms and timers** at the same time (limit of the Pebble wakeup API).
 - Reminders shortly in the future can arrive late because of timeline sync; Buddy warns about
   this. Reminders need a timeline token from the Pebble app; if it is missing, Buddy says so.
-  Buddy does not check whether the pin actually reaches the timeline service.
+  A reminder counts as set only once the timeline service has accepted its pin; otherwise Buddy
+  says it was not set. If deleting a reminder from the list on the watch fails, a notification
+  says so and the reminder shows up in the list again.
 - No web search: the model only knows what it was trained on.
 - Cloudflare cuts requests off after 100 seconds, so the timeout is at most 90 s.
 
