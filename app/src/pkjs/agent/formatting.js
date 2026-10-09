@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
-exports.forWatch = function(text) {
+// Cleans up model text for the watch. With `partial` (an answer still being written) only leading
+// whitespace is trimmed, so the next piece can follow on directly.
+exports.cleanForWatch = function(text, partial) {
     text = String(text || '');
     text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
     text = text.replace(/\u2022/g, '-');
@@ -28,5 +30,9 @@ exports.forWatch = function(text) {
     text = text.replace(/`([^`\n]+)`/g, '$1');
     text = text.replace(/[ \t]+\n/g, '\n');
     text = text.replace(/\n{3,}/g, '\n\n');
-    return text.trim();
-}
+    return partial ? text.replace(/^\s+/, '') : text.trim();
+};
+
+exports.forWatch = function(text) {
+    return exports.cleanForWatch(text, false);
+};

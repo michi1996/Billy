@@ -1,1 +1,0 @@
-Billy uses the Gemini API key you configure. Your prompts are sent from your phone to Google Gemini, not to a Billy-hosted helper service. Android enhanced mode, if enabled, may process requests through the Android companion. If you do not agree, you cannot use Billy.

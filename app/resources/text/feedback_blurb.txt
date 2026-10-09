@@ -1,6 +1,0 @@
-# Feedback
-You can give feedback on Billy by dictating a message here. Your phone will send it to the Billy feedback endpoint.
-
-To give feedback during a conversation, hold select on the conversation screen.
-
-If no endpoint is configured, your phone will open a prefilled GitHub issue instead. Feedback is not sent to Rebble or the original Bobby author.

@@ -30,7 +30,7 @@
 
 
 #define STAGE_LLM_WARNING 0
-#define STAGE_GEMINI_CONSENT 1
+#define STAGE_PRIVACY_NOTICE 1
 #define STAGE_LOCATION_CONSENT 2
 
 typedef struct {
@@ -173,8 +173,8 @@ static void prv_set_stage(Window* window, int stage) {
     res_handle = resource_get_handle(RESOURCE_ID_LLM_WARNING_TEXT);
     data->title_text = "Important";
     break;
-  case STAGE_GEMINI_CONSENT:
-    res_handle = resource_get_handle(RESOURCE_ID_GEMINI_CONSENT_TEXT);
+  case STAGE_PRIVACY_NOTICE:
+    res_handle = resource_get_handle(RESOURCE_ID_PRIVACY_CONSENT_TEXT);
     data->title_text = "Privacy";
     break;
   case STAGE_LOCATION_CONSENT:
@@ -223,9 +223,9 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *contex
   }
   switch (data->stage) {
     case STAGE_LLM_WARNING:
-      prv_set_stage(window, STAGE_GEMINI_CONSENT);
+      prv_set_stage(window, STAGE_PRIVACY_NOTICE);
       break;
-    case STAGE_GEMINI_CONSENT:
+    case STAGE_PRIVACY_NOTICE:
       prv_set_stage(window, STAGE_LOCATION_CONSENT);
       break;
     case STAGE_LOCATION_CONSENT:

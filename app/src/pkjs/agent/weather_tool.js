@@ -42,23 +42,21 @@ function stringSchema(description) {
 exports.getDeclarations = function() {
     return [{
         type: 'function',
-        name: 'get_weather',
-        description: 'Show a Pebble weather card with current conditions and return a short forecast. Use this for weather, temperature, umbrella, wind, or forecast requests. Omit latitude/longitude for local weather.',
-        parameters: schema({
-            latitude: numberSchema('Optional latitude for a named place. Omit for local weather.'),
-            longitude: numberSchema('Optional longitude for a named place. Omit for local weather.'),
-            location_name: stringSchema('Optional place label, city, address, or destination name.')
-        }, [])
+        'function': {
+            name: 'get_weather',
+            description: 'Show a weather card with current conditions on the watch and return a short forecast for today. Omit latitude/longitude for the local weather.',
+            parameters: schema({
+                latitude: numberSchema('Latitude of a named place. Omit for local weather.'),
+                longitude: numberSchema('Longitude of a named place. Omit for local weather.'),
+                location_name: stringSchema('Place name, e.g. a city. Omit for local weather.')
+            }, [])
+        }
     }];
 };
 
-exports.execute = function(session, call, callback) {
-    if (call.name !== 'get_weather') {
-        return false;
-    }
-    var args = normalizeArguments(call);
+exports.execute = function(session, args, callback) {
     session.handleMessage({data: 'fChecking weather'});
-    resolveWeatherLocation(args, function(locationErr, weatherLocation) {
+    resolveWeatherLocation(args || {}, function(locationErr, weatherLocation) {
         if (locationErr) {
             callback({status: 'error', summary: locationErr.message || String(locationErr)});
             return;
@@ -92,20 +90,7 @@ exports.execute = function(session, call, callback) {
             });
         });
     });
-    return true;
 };
-
-function normalizeArguments(call) {
-    var args = call.arguments || {};
-    if (typeof args === 'string') {
-        try {
-            return JSON.parse(args);
-        } catch (e) {
-            return {};
-        }
-    }
-    return args;
-}
 
 function resolveWeatherLocation(args, callback) {
     var latitude = parseFloat(args.latitude);
@@ -124,12 +109,12 @@ function resolveWeatherLocation(args, callback) {
         return;
     }
     if (!config.isLocationEnabled()) {
-        callback(new Error('Location is disabled in Billy settings.'));
+        callback(new Error('Location is disabled in Buddy settings.'));
         return;
     }
     if (!location.isReady()) {
         location.update();
-        callback(new Error('Local weather needs a recent phone location. Open Billy once or check location permission.'));
+        callback(new Error('Local weather needs a recent phone location. Open Buddy once or check location permission.'));
         return;
     }
     var pos = location.getPos();

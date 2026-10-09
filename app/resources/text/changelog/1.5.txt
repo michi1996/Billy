@@ -1,8 +1,0 @@
-# Billy 0.1
-This is the first public Billy release.
-## Personal Gemini
-Billy can use your own Gemini API key directly from the Pebble phone app, or through the optional Android companion.
-## Optional Android Companion
-The companion adds private phone and Google account tools for Calendar, Gmail, Tasks, Drive, Docs, Sheets, Slides, Photos, weather, maps, and media transfer without a hosted helper server.
-## Pebble-first UI
-Billy keeps Bobby's fast watch features, including on-watch alarms, timers, reminders, weather cards, sample prompts, feedback, settings, and Pebble-style chat formatting.

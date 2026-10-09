@@ -21,38 +21,9 @@
 #include "../util/memory/pressure.h"
 #include "../util/logging.h"
 #include "../util/strings.h"
-#include "../settings/settings.h"
 
 #include <pebble-events/pebble-events.h>
 #include <pebble.h>
-#include <stdio.h>
-
-#if defined(PBL_PLATFORM_EMERY)
-#define WATCH_MEDIA_WIDTH 198
-#define WATCH_MEDIA_HEIGHT 198
-#define WATCH_MEDIA_PBI_DEPTH 4
-#define WATCH_MEDIA_MAX_BYTES 40000
-#define WATCH_CLARIFY_OPTION_CHARS 28
-#elif defined(PBL_PLATFORM_BASALT)
-#define WATCH_MEDIA_WIDTH 144
-#define WATCH_MEDIA_HEIGHT 100
-#define WATCH_MEDIA_PBI_DEPTH 2
-#define WATCH_MEDIA_MAX_BYTES 23000
-#define WATCH_CLARIFY_OPTION_CHARS 20
-#elif defined(PBL_PLATFORM_CHALK)
-#define WATCH_MEDIA_WIDTH 144
-#define WATCH_MEDIA_HEIGHT 100
-#define WATCH_MEDIA_PBI_DEPTH 2
-#define WATCH_MEDIA_MAX_BYTES 23000
-#define WATCH_CLARIFY_OPTION_CHARS 18
-#else
-#define WATCH_MEDIA_WIDTH 144
-#define WATCH_MEDIA_HEIGHT 100
-#define WATCH_MEDIA_PBI_DEPTH 1
-#define WATCH_MEDIA_MAX_BYTES 8500
-#define WATCH_CLARIFY_OPTION_CHARS 18
-#endif
-
 
 struct ConversationManager {
   Conversation* conversation;
@@ -87,9 +58,6 @@ static ConversationManager* s_conversation_manager;
 
 #define INPUT_SEND_RETRY_DELAY_MS 450
 #define INPUT_SEND_MAX_ATTEMPTS 5
-#define BILLY_MESSAGE_KEY_ANDROID_REQUEST_ID 10125
-
-static uint32_t s_next_android_request_id = 1;
 
 void conversation_manager_init() {
   events_app_message_request_outbox_size(1024);
@@ -170,23 +138,6 @@ static bool prv_send_input(ConversationManager* manager, const char* input) {
   strings_fix_android_bridge_bodge(bridge_bodge);
   dict_write_cstring(iter, MESSAGE_KEY_PROMPT, bridge_bodge);
   free(bridge_bodge);
-  dict_write_cstring(iter, MESSAGE_KEY_ASSISTANT_RUNTIME, settings_get_assistant_runtime());
-  char prompt_context[64];
-  snprintf(
-      prompt_context,
-      sizeof(prompt_context),
-      "media=%dx%d;pbi=%d;maxb=%d;opt=%d",
-      WATCH_MEDIA_WIDTH,
-      WATCH_MEDIA_HEIGHT,
-      WATCH_MEDIA_PBI_DEPTH,
-      WATCH_MEDIA_MAX_BYTES,
-      WATCH_CLARIFY_OPTION_CHARS);
-  dict_write_cstring(iter, MESSAGE_KEY_PROMPT_CONTEXT, prompt_context);
-  uint32_t request_id = s_next_android_request_id++;
-  if (s_next_android_request_id == 0) {
-    s_next_android_request_id = 1;
-  }
-  dict_write_uint32(iter, BILLY_MESSAGE_KEY_ANDROID_REQUEST_ID, request_id);
 
   const char* thread_id = conversation_get_thread_id(manager->conversation);
   if (thread_id[0] != 0) {
@@ -272,6 +223,10 @@ static void prv_handle_app_message_outbox_failed(DictionaryIterator *iterator, A
     prv_schedule_input_retry(manager, prompt_tuple->value->cstring);
     return;
   }
+  if (dict_find(iterator, MESSAGE_KEY_WARMUP)) {
+    // The warm-up request (warmup.c) retries on its own and is not part of the conversation.
+    return;
+  }
   conversation_add_error(manager->conversation, "Sending to service failed.");
   prv_conversation_updated(manager, true);
 }
@@ -337,12 +292,6 @@ static void prv_handle_app_message_inbox_received(DictionaryIterator *iter, void
       ConversationAction action = {
         .type = ConversationActionTypeDeleteReminder,
         .action = {},
-      };
-      conversation_manager_add_action(manager, &action);
-    } else if (tuple->key == MESSAGE_KEY_ACTION_FEEDBACK_SENT) {
-      ConversationAction action = {
-        .type = ConversationActionTypeSendFeedback,
-        .action = {}
       };
       conversation_manager_add_action(manager, &action);
     } else if (tuple->key == MESSAGE_KEY_ACTION_SETTINGS_UPDATED) {

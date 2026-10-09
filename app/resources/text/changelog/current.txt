@@ -1,0 +1,6 @@
+# Buddy 0.1
+Buddy is a fork of Billy and Bobby that talks to your own language model server.
+## Your own server
+Prompts go from the Pebble phone app to your llama.cpp server behind Cloudflare Access. Configure it in the app settings.
+## Watch features
+Alarms, timers, timeline reminders, settings, weather cards and clarification pickers work as before. Simple timers and alarms are set instantly without the model.

@@ -14,8 +14,18 @@
  * limitations under the License.
  */
 
+exports.DEFAULT_LLM_MODEL = 'qwen2.5-14b-instruct';
+exports.DEFAULT_LLM_TIMEOUT_SECONDS = 45;
+exports.MIN_LLM_TIMEOUT_SECONDS = 10;
+exports.MAX_LLM_TIMEOUT_SECONDS = 90;
+
 exports.getSettings = function() {
-    return JSON.parse(localStorage.getItem('clay-settings')) || {};
+    try {
+        return JSON.parse(localStorage.getItem('clay-settings')) || {};
+    } catch (e) {
+        console.log('Stored settings are not valid JSON; ignoring them.');
+        return {};
+    }
 }
 
 exports.getSetting = function(key, defaultValue) {
@@ -36,42 +46,99 @@ exports.isLocationEnabled = function() {
     return !!exports.getSettings()['LOCATION_ENABLED'];
 }
 
-exports.RUNTIME_AUTOMATIC = 'automatic';
-exports.RUNTIME_COMPANIONLESS = 'companionless';
-exports.RUNTIME_ANDROID = 'android';
-
-exports.getAssistantRuntime = function() {
-    return exports.getSetting('ASSISTANT_RUNTIME', exports.RUNTIME_AUTOMATIC);
-}
-
-exports.getGeminiApiKey = function() {
-    return String(exports.getSetting('GEMINI_API_KEY', '') || '').replace(/\s+/g, '');
-}
-
-exports.getGeminiModel = function() {
-    var model = String(exports.getSetting('GEMINI_MODEL', 'gemini-3.1-flash-lite') || 'gemini-3.1-flash-lite').replace(/\s+/g, '');
-    if (!model || model === 'gemini-3.5-flash') {
-        return 'gemini-3.1-flash-lite';
+function compact(value) {
+    if (value === undefined || value === null) {
+        return '';
     }
-    return model;
+    return String(value).replace(/\s+/g, '');
 }
 
-exports.getGeminiMonthlyBudgetUsd = function() {
-    return exports.getSetting('GEMINI_MONTHLY_BUDGET_USD', '10');
+function readBoolean(key, defaultValue) {
+    var value = exports.getSetting(key, defaultValue);
+    if (value === false || value === 0 || value === '0' || value === 'false') {
+        return false;
+    }
+    if (value === true || value === 1 || value === '1' || value === 'true') {
+        return true;
+    }
+    return defaultValue;
 }
 
-exports.getGithubIssuesUrl = function() {
-    return exports.getSetting('GITHUB_ISSUES_URL', 'https://github.com/tombolger/Billy/issues/new');
+// Accepts what people tend to paste: a bare host, a trailing slash, or the full
+// /v1/chat/completions endpoint. Returns '' if the value is not an http(s) URL.
+exports.normalizeBaseUrl = function(value) {
+    var url = compact(value);
+    if (!url) {
+        return '';
+    }
+    if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(url)) {
+        url = 'https://' + url;
+    }
+    if (!/^https?:\/\/[^\/?#]+/i.test(url)) {
+        return '';
+    }
+    url = url.replace(/[?#].*$/, '');
+    url = url.replace(/\/+$/, '');
+    url = url.replace(/\/v1(\/chat\/completions)?$/i, '');
+    url = url.replace(/\/+$/, '');
+    return url;
 }
 
-exports.getFeedbackPostUrl = function() {
-    return String(exports.getSetting('FEEDBACK_POST_URL', '') || '').replace(/^\s+|\s+$/g, '');
+exports.getLlmBaseUrl = function() {
+    return exports.normalizeBaseUrl(exports.getSetting('LLM_BASE_URL', ''));
 }
 
-exports.getUserProfileContext = function() {
-    return String(exports.getSetting('USER_PROFILE_CONTEXT', '') || '')
-        .replace(/[\r\n]+/g, ' ')
-        .replace(/\s+/g, ' ')
-        .replace(/^\s+|\s+$/g, '')
-        .substring(0, 1200);
+exports.getCfAccessClientId = function() {
+    return compact(exports.getSetting('CF_ACCESS_CLIENT_ID', ''));
+}
+
+exports.getCfAccessClientSecret = function() {
+    return compact(exports.getSetting('CF_ACCESS_CLIENT_SECRET', ''));
+}
+
+// Optional: llama-server's own key (--api-key), sent as Authorization: Bearer.
+exports.getLlmApiKey = function() {
+    return compact(exports.getSetting('LLM_API_KEY', ''));
+};
+
+exports.getLlmModel = function() {
+    var model = compact(exports.getSetting('LLM_MODEL', ''));
+    return model || exports.DEFAULT_LLM_MODEL;
+}
+
+exports.getLlmTimeoutSeconds = function() {
+    var seconds = parseInt(exports.getSetting('LLM_TIMEOUT_SECONDS', exports.DEFAULT_LLM_TIMEOUT_SECONDS), 10);
+    if (isNaN(seconds)) {
+        return exports.DEFAULT_LLM_TIMEOUT_SECONDS;
+    }
+    return Math.max(exports.MIN_LLM_TIMEOUT_SECONDS, Math.min(exports.MAX_LLM_TIMEOUT_SECONDS, seconds));
+}
+
+exports.getLlmSettings = function() {
+    return {
+        baseUrl: exports.getLlmBaseUrl(),
+        clientId: exports.getCfAccessClientId(),
+        clientSecret: exports.getCfAccessClientSecret(),
+        apiKey: exports.getLlmApiKey(),
+        model: exports.getLlmModel(),
+        timeoutSeconds: exports.getLlmTimeoutSeconds()
+    };
+}
+
+exports.isLlmConfigured = function() {
+    var settings = exports.getLlmSettings();
+    return !!(settings.baseUrl && settings.clientId && settings.clientSecret);
+}
+
+exports.isFastPathEnabled = function() {
+    return readBoolean('FAST_PATH_ENABLED', true);
+}
+
+// Show the answer on the watch while the model is still writing it.
+exports.isStreamingEnabled = function() {
+    return readBoolean('STREAM_ANSWERS', true);
+};
+
+exports.isEmulatorRealServerEnabled = function() {
+    return readBoolean('EMULATOR_REAL_SERVER', false);
 }

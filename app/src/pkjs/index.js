@@ -16,48 +16,41 @@
 
 var location = require('./location');
 var session = require('./session');
-var quota = require('./quota');
 var Clay = require('@rebble/clay');
 var clayConfig = require('./config.json');
 var customConfigFunction = require('./custom_config');
 var config = require('./config');
 var reminders = require('./reminders');
-var feedback = require('./lib/feedback');
+var settingsPage = require('./settings_page');
+var quickPrompts = require('./quick_prompts');
+var warmup = require('./warmup');
+var messageQueue = require('./lib/message_queue').Queue;
 var package_json = require('package.json');
-var runtimeRouter = require('./agent/runtime_router');
 
 
-var clay = new Clay(clayConfig, customConfigFunction);
+var clay = new Clay(clayConfig, customConfigFunction, {autoHandleEvents: false});
+settingsPage.install(clay, localStorage, Pebble);
 
 function main() {
-    doQuotaWarning();
     location.update();
     Pebble.addEventListener('appmessage', handleAppMessage);
-}
-
-function doQuotaWarning() {
-    quota.fetchQuota(function(response) {
-        if (!response.hasSubscription) {
-            Pebble.showSimpleNotificationOnPebble(
-                "Subscription Needed",
-                "In order to use Billy, you need a Rebble subscription. You can sign up for a subscription at auth.rebble.io."
-            );
-        }
-    });
+    // Keep the watch's quick prompt list in sync (e.g. "Automatic" follows the phone language).
+    messageQueue.enqueue(quickPrompts.buildMessage(config.getSettings()));
 }
 
 function handleAppMessage(e) {
     console.log("Inbound app message!");
     console.log(JSON.stringify(e));
     var data = e.payload;
-    if (data.ANDROID_COMPANION_READY) {
-        runtimeRouter.recordAndroidCompanionSeen(data.ANDROID_REQUEST_ID);
-        return;
-    }
     if (data.PROMPT) {
         console.log("Starting a new Session...");
-        var s = new session.Session(data.PROMPT, data.THREAD_ID, data.ANDROID_REQUEST_ID);
+        var s = new session.Session(data.PROMPT, data.THREAD_ID);
         s.run();
+        return;
+    }
+
+    if (data.WARMUP) {
+        warmup.run();
         return;
     }
 
@@ -65,10 +58,6 @@ function handleAppMessage(e) {
         return;
     }
 
-    if (data.QUOTA_REQUEST) {
-        console.log("Requesting quota...");
-        quota.handleQuotaRequest();
-    }
     if ('LOCATION_ENABLED' in data) {
         config.setSetting("LOCATION_ENABLED", !!data.LOCATION_ENABLED);
         console.log("Location enabled: " + config.isLocationEnabled());
@@ -77,19 +66,11 @@ function handleAppMessage(e) {
             LOCATION_ENABLED: data.LOCATION_ENABLED,
         });
     }
-    if ('FEEDBACK_TEXT' in data) {
-        console.log("Handling feedback...");
-        feedback.handleFeedbackRequest(data);
-    }
-    if ('REPORT_THREAD_UUID' in data) {
-        console.log("Handling report...");
-        feedback.handleReportRequest(data);
-    }
 }
 
 function doCobbleWarning() {
     if (window.cobble) {
-        console.log("WARNING: Running Billy on Cobble is not supported, and has multiple known issues.");
+        console.log("WARNING: Running Buddy on Cobble is not supported, and has multiple known issues.");
         Pebble.sendAppMessage({COBBLE_WARNING: 1});
     }
 }
@@ -99,19 +80,16 @@ Pebble.addEventListener("ready",
         // This happens before anything else because I don't trust Cobble to get through the normal flow,
         // given how many things bizarrely don't work.
         doCobbleWarning();
-        console.log("Billy " + package_json['version']);
+        console.log("Buddy " + package_json['version']);
         if (Pebble.platform === 'pypkjs') {
             console.log("Entering emulator mode.");
             var emulator_main = require('./emulator/emulator_main');
             emulator_main.main();
             return;
         }
-        Pebble.getTimelineToken(function(token) {
-            console.log("Entering real mode.");
-            session.userToken = token;
-            main();
-        }, function(e) {
-            console.log("Get timeline token failed???", e);
-        })
+        // The timeline token is only needed for reminder pins, and actions/timeline.js fetches it
+        // itself. Don't make the rest of the app depend on it.
+        console.log("Entering real mode.");
+        main();
     }
 );

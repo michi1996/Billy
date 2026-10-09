@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
-var PREFIX = 'billy-local-thread:';
-var MAX_TURNS = 6;
+var PREFIX = 'buddy-thread:';
+// Only a few turns: each one costs prompt tokens and latency on a 14B model.
+var MAX_TURNS = 3;
+var MAX_STORED_CHARS = 400;
 
 function randomHex(count) {
     var out = '';
@@ -68,25 +70,26 @@ exports.ensureThreadId = function(session) {
     return session.threadId;
 }
 
-exports.buildInput = function(threadId, prompt) {
-    var turns = load(threadId);
-    if (turns.length === 0) {
-        return prompt;
-    }
-    var lines = ['Recent local conversation context:'];
-    turns.forEach(function(turn) {
-        lines.push('User: ' + turn.user);
-        lines.push('Billy: ' + turn.assistant);
+function clip(text) {
+    text = String(text || '');
+    return text.length > MAX_STORED_CHARS ? text.substring(0, MAX_STORED_CHARS - 3) + '...' : text;
+}
+
+// Earlier turns of this thread as OpenAI chat messages (oldest first).
+exports.buildMessages = function(threadId) {
+    var messages = [];
+    load(threadId).slice(-MAX_TURNS).forEach(function(turn) {
+        messages.push({role: 'user', content: String(turn.user || '')});
+        messages.push({role: 'assistant', content: String(turn.assistant || '')});
     });
-    lines.push('Current user request: ' + prompt);
-    return lines.join('\n');
+    return messages;
 }
 
 exports.recordTurn = function(threadId, userPrompt, assistantText) {
     var turns = load(threadId);
     turns.push({
-        user: userPrompt,
-        assistant: assistantText
+        user: clip(userPrompt),
+        assistant: clip(assistantText)
     });
     save(threadId, turns);
 }

@@ -21,15 +21,20 @@ exports.setReminder = function(session, message, callback) {
   var what = message['what'];
   
   try {
-    reminders.addReminder(what, when);
-    var unixTime = (new Date(when)).getTime() / 1000;
-    session.enqueue({ACTION_REMINDER_WAS_SET: unixTime});
-    
-    if (unixTime < (new Date()).getTime() / 1000 + 3600) {
-      callback({"warning": "Your reminder was set. It is **critical** you warn the user: Due to timeline delays, reminders set in the near future may not appear on time."});
-    } else {
-      callback({"status": "ok"});
-    }
+    reminders.addReminder(what, when, function(error) {
+      if (error) {
+        callback({"error": "The reminder was NOT set: the Pebble timeline service did not take it (" + error + ")."});
+        return;
+      }
+      var unixTime = (new Date(when)).getTime() / 1000;
+      session.enqueue({ACTION_REMINDER_WAS_SET: unixTime});
+      
+      if (unixTime < (new Date()).getTime() / 1000 + 3600) {
+        callback({"warning": "Your reminder was set. It is **critical** you warn the user: Due to timeline delays, reminders set in the near future may not appear on time."});
+      } else {
+        callback({"status": "ok"});
+      }
+    });
   } catch (err) {
     callback({"error": "Failed to set reminder: " + err.message});
   }
@@ -55,15 +60,22 @@ exports.deleteReminder = function(session, message, callback) {
   var reminderId = message['id'];
   if (!reminderId) {
     callback({"error": "No reminder ID provided"});
+    return;
   }
   
   try {
-    var success = reminders.deleteReminder(reminderId);
-    if (!success) {
-      callback({"error": "Reminder not found"});
-    }
-    session.enqueue({ACTION_REMINDER_DELETED: 1});
-    callback({"status": "ok"});
+    reminders.deleteReminder(reminderId, function(error, found) {
+      if (error) {
+        callback({"error": "The reminder was NOT deleted: the Pebble timeline service did not take the request (" + error + ")."});
+        return;
+      }
+      if (!found) {
+        callback({"error": "Reminder not found"});
+        return;
+      }
+      session.enqueue({ACTION_REMINDER_DELETED: 1});
+      callback({"status": "ok"});
+    });
   } catch (err) {
     callback({"error": "Failed to delete reminder: " + err.message});
   }

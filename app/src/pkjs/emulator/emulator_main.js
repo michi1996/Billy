@@ -1,9 +1,8 @@
 var location = require("../location");
 var reminders = require("../reminders");
 var emulatorSession = require("./emulator_session");
-var quota = require("../quota");
+var session = require("../session");
 var config = require("../config");
-var feedback = require("../lib/feedback");
 
 function main() {
     location.update();
@@ -16,8 +15,17 @@ function handleAppMessage(e) {
     console.log(JSON.stringify(e));
     var data = e.payload;
     if (data.PROMPT) {
-        console.log("Starting a new Session...");
-        var s = new emulatorSession.Session(data.PROMPT, data.THREAD_ID);
+        // The "Emulator: use the real server" setting sends prompts to the configured server,
+        // using the values stored by the config page (pebble emu-app-config). Otherwise the
+        // emulator replays recorded answers.
+        var s;
+        if (config.isEmulatorRealServerEnabled()) {
+            console.log("Starting a real Session against the configured server...");
+            s = new session.Session(data.PROMPT, data.THREAD_ID);
+        } else {
+            console.log("Starting a prerecorded Session...");
+            s = new emulatorSession.Session(data.PROMPT, data.THREAD_ID);
+        }
         s.run();
         return;
     }
@@ -26,10 +34,6 @@ function handleAppMessage(e) {
         return;
     }
 
-    if (data.QUOTA_REQUEST) {
-        console.log("Requesting quota...");
-        quota.handleQuotaRequest();
-    }
     if ('LOCATION_ENABLED' in data) {
         config.setSetting("LOCATION_ENABLED", !!data.LOCATION_ENABLED);
         console.log("Location enabled: " + config.isLocationEnabled());
@@ -37,14 +41,6 @@ function handleAppMessage(e) {
         Pebble.sendAppMessage({
             LOCATION_ENABLED: data.LOCATION_ENABLED,
         });
-    }
-    if ('FEEDBACK_TEXT' in data) {
-        console.log("Handling feedback...");
-        feedback.handleFeedbackRequest(data);
-    }
-    if ('REPORT_THREAD_UUID' in data) {
-        console.log("Handling report...");
-        feedback.handleReportRequest(data);
     }
 }
 

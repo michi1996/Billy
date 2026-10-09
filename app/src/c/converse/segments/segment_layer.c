@@ -84,7 +84,7 @@ SegmentLayer* segment_layer_create(GRect rect, ConversationEntry* entry, bool as
     data->assistant_label_layer = btext_layer_create(GRect(5, 0, rect.size.w, fonts->small_font_cap * 2.25));
     text_layer_set_font(data->assistant_label_layer, fonts->small_font);
     layer_add_child(layer, text_layer_get_layer(data->assistant_label_layer));
-    text_layer_set_text(data->assistant_label_layer, "Billy");
+    text_layer_set_text(data->assistant_label_layer, "Buddy");
     child_frame = GRect(0, fonts->small_font_cap * 2.25, rect.size.w, rect.size.h - fonts->small_font_cap * 2.25);
   } else {
     data->assistant_label_layer = NULL;

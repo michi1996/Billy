@@ -31,10 +31,14 @@
 
 #include <pebble.h>
 
-#include "report_window.h"
 
 #define PADDING 5
 #define CLARIFICATION_DICTATE_OPTION "Dictate..."
+// An answer that arrives faster than this keeps its start in view; a slower (streamed) one is
+// followed so its newest line stays visible.
+#define FOLLOW_DELAY_MS 1500
+// How close to the end counts as being at the end when scrolling by hand.
+#define FOLLOW_TOLERANCE 4
 
 struct SessionWindow {
   Window* window;
@@ -59,6 +63,11 @@ struct SessionWindow {
   int timeout;
   char* starting_prompt;
   char* last_prompt_label;
+  // Following an answer while it comes in (see prv_follow_response).
+  bool follow_paused;
+  bool auto_scrolling;
+  int16_t last_scroll_position;
+  int64_t response_started_ms;
 };
 
 static void prv_window_load(Window *window);
@@ -77,12 +86,13 @@ static void prv_down_clicked(ClickRecognizerRef recognizer, void *context);
 static void prv_update_thinking_layer(SessionWindow* sw);
 static int16_t prv_content_height(const SessionWindow* sw);
 static void prv_scrolled_handler(ScrollLayer* scroll_layer, void* context);
+static void prv_scroll_to(SessionWindow* sw, int16_t y);
+static void prv_follow_response(SessionWindow* sw);
 static void prv_refresh_timeout(SessionWindow* sw);
 static void prv_timed_out(void *ctx);
 static void prv_cancel_timeout(SessionWindow* sw);
 static void prv_action_menu_query(ActionMenu *action_menu, const ActionMenuItem *action, void *context);
 static void prv_action_menu_input(ActionMenu *action_menu, const ActionMenuItem *action, void *context);
-static void prv_action_menu_report_thread(ActionMenu *action_menu, const ActionMenuItem *action, void *context);
 static void prv_start_dictation(SessionWindow *sw);
 static SessionWindow* prv_active_session_window(void);
 static bool prv_submit_clarification_answer(SessionWindow *sw, const char *answer_text, const char *display_override);
@@ -259,9 +269,53 @@ static void prv_set_scroll_height(SessionWindow* sw) {
   }
   scroll_layer_set_content_size(sw->scroll_layer, new_size);
   GPoint offset = scroll_layer_get_content_offset(sw->scroll_layer);
-  if (offset.y > -sw->last_prompt_end_offset) {
-    int scroll_target = -sw->last_prompt_end_offset;
-    scroll_layer_set_content_offset(sw->scroll_layer, GPoint(0, scroll_target), false);
+  // Bring the reply into view, unless the user scrolled away while it is coming in.
+  if (!sw->follow_paused && offset.y > -sw->last_prompt_end_offset) {
+    prv_scroll_to(sw, -sw->last_prompt_end_offset);
+  }
+}
+
+static int64_t prv_now_ms(void) {
+  time_t seconds;
+  uint16_t ms;
+  time_ms(&seconds, &ms);
+  return (int64_t)seconds * 1000 + ms;
+}
+
+// How far the content can scroll before its end is in view (0 if everything fits).
+static int16_t prv_bottom_offset(SessionWindow* sw) {
+  int16_t viewport = layer_get_frame(scroll_layer_get_layer(sw->scroll_layer)).size.h;
+  int16_t bottom = sw->content_height + PADDING - viewport;
+  return bottom > 0 ? bottom : 0;
+}
+
+// Scrolls without it counting as the user scrolling.
+static void prv_scroll_to(SessionWindow* sw, int16_t y) {
+  sw->auto_scrolling = true;
+  scroll_layer_set_content_offset(sw->scroll_layer, GPoint(0, y), false);
+  sw->auto_scrolling = false;
+}
+
+// Keeps a reply in view while it comes in. A streamed reply is followed so its newest line (and
+// the thinking dots below it) stay visible. A reply that arrives all at once keeps its start in
+// view, as before. Scrolling by hand stops following until the end is in view again.
+static void prv_follow_response(SessionWindow* sw) {
+  if (sw->follow_paused || sw->segment_count <= sw->segments_deleted) {
+    return;
+  }
+  ConversationEntry* entry = conversation_peek(conversation_manager_get_conversation(sw->manager));
+  if (entry == NULL || conversation_entry_get_type(entry) != EntryTypeResponse) {
+    return;
+  }
+  int16_t target = prv_bottom_offset(sw);
+  if (prv_now_ms() - sw->response_started_ms < FOLLOW_DELAY_MS) {
+    int16_t start = layer_get_frame(sw->segment_layers[sw->segment_count - 1]).origin.y;
+    if (target > start) {
+      target = start;
+    }
+  }
+  if (target > -scroll_layer_get_content_offset(sw->scroll_layer).y) {
+    prv_scroll_to(sw, -target);
   }
 }
 
@@ -322,6 +376,7 @@ static void prv_conversation_manager_handler(bool entry_added, void* context) {
       sw->content_height = sw->content_height - old_height + new_height;
       prv_update_thinking_layer(sw);
       prv_set_scroll_height(sw);
+      prv_follow_response(sw);
       light_enable_interaction();
     }
     return;
@@ -370,9 +425,14 @@ static void prv_conversation_manager_handler(bool entry_added, void* context) {
   EntryType entry_type = conversation_entry_get_type(entry);
   if (entry_type == EntryTypePrompt) {
     sw->last_prompt_end_offset = prv_content_height(sw);
+    sw->follow_paused = false;
+  } else if (entry_type == EntryTypeResponse) {
+    sw->response_started_ms = prv_now_ms();
+    sw->follow_paused = false;
   }
   prv_update_thinking_layer(sw);
   prv_set_scroll_height(sw);
+  prv_follow_response(sw);
   light_enable_interaction();
   prv_refresh_timeout(sw);
   // For responses that took longer than five seconds, pulse the vibe when we get useful data.
@@ -423,11 +483,12 @@ static void prv_conversation_entry_deleted_handler(int index, void* context) {
   // We need to adjust the height of everything to compensate for the missing segment.
   sw->content_height -= removed_height;
   GPoint current_offset = scroll_layer_get_content_offset(sw->scroll_layer);
-  GPoint new_offset = GPoint(current_offset.x, current_offset.y - removed_height);
-  scroll_layer_set_content_offset(sw->scroll_layer, new_offset, false);
+  prv_scroll_to(sw, current_offset.y - removed_height);
   GSize current_size = scroll_layer_get_content_size(sw->scroll_layer);
   GSize new_size = GSize(current_size.w, current_size.h - removed_height);
+  sw->auto_scrolling = true;
   scroll_layer_set_content_size(sw->scroll_layer, new_size);
+  sw->auto_scrolling = false;
   // We need to remove our first segment.
   layer_remove_from_parent(to_delete);
   segment_layer_destroy(sw->segment_layers[sw->segments_deleted]);
@@ -516,6 +577,10 @@ static void prv_up_clicked(ClickRecognizerRef recognizer, void *context) {
     return;
   }
   if (!prv_move_clarification_selection(sw, -1)) {
+    // Stop following a reply right away, before new text could scroll back down.
+    if (scroll_layer_get_content_offset(sw->scroll_layer).y < 0) {
+      sw->follow_paused = true;
+    }
     scroll_layer_scroll_up_click_handler(recognizer, sw->scroll_layer);
   }
 }
@@ -599,13 +664,12 @@ static void prv_select_long_pressed(ClickRecognizerRef recognizer, void *context
   if (!conversation_is_idle(conversation_manager_get_conversation(sw->manager))) {
     return;
   }
-  ActionMenuLevel *action_menu = baction_menu_level_create(5);
+  ActionMenuLevel *action_menu = baction_menu_level_create(4);
   action_menu_level_add_action(action_menu, "\"Yes.\"", prv_action_menu_input, "Yes.");
   action_menu_level_add_action(action_menu, "\"No.\"", prv_action_menu_input, "No.");
   Conversation *conversation = conversation_manager_get_conversation(sw->manager);
   ConversationEntry *entry = conversation_peek(conversation);
   EntryType type = conversation_entry_get_type(entry);
-  int separator_index = 3;
   if (type == EntryTypeError) {
     ConversationEntry *last_prompt = conversation_get_last_of_type(conversation, EntryTypePrompt);
     if (last_prompt != NULL) {
@@ -613,12 +677,9 @@ static void prv_select_long_pressed(ClickRecognizerRef recognizer, void *context
       sw->last_prompt_label = bmalloc(strlen(prompt->prompt) + 3);
       snprintf(sw->last_prompt_label, strlen(prompt->prompt) + 3, "\"%s\"", prompt->prompt);
       action_menu_level_add_action(action_menu, sw->last_prompt_label, prv_action_menu_input, prompt->prompt);
-      separator_index++;
     }
   }
   action_menu_level_add_action(action_menu, "Dictate", prv_action_menu_query, NULL);
-  action_menu_level_set_separator_index(action_menu, separator_index);
-  action_menu_level_add_action(action_menu, "Report conversation", prv_action_menu_report_thread, NULL);
   ActionMenuConfig config = (ActionMenuConfig) {
     .root_level = action_menu,
     .colors = {
@@ -648,14 +709,20 @@ static void prv_action_menu_input(ActionMenu *action_menu, const ActionMenuItem 
   sw->query_time = time(NULL);
 }
 
-static void prv_action_menu_report_thread(ActionMenu *action_menu, const ActionMenuItem *action, void *context) {
-  SessionWindow* sw = context;
-  report_window_push(conversation_get_thread_id(conversation_manager_get_conversation(sw->manager)));
-}
-
 static void prv_scrolled_handler(ScrollLayer* scroll_layer, void* context) {
   SessionWindow* sw = context;
   prv_refresh_timeout(sw);
+  int16_t position = -scroll_layer_get_content_offset(scroll_layer).y;
+  if (!sw->auto_scrolling) {
+    // Scrolled by hand (buttons or touch): stop following the reply; follow again once the user
+    // scrolls down to its end.
+    if (position < prv_bottom_offset(sw) - FOLLOW_TOLERANCE) {
+      sw->follow_paused = true;
+    } else if (position > sw->last_scroll_position) {
+      sw->follow_paused = false;
+    }
+  }
+  sw->last_scroll_position = position;
 }
 
 static void prv_refresh_timeout(SessionWindow* sw) {

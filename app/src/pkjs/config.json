@@ -1,76 +1,112 @@
 [
     {
-        "type": "heading",
-        "defaultValue": "Billy",
-        "size": 1
+        "type": "buddy-header"
     },
     {
         "type": "section",
         "items": [
             {
                 "type": "heading",
-                "defaultValue": "Assistant"
+                "defaultValue": "Server"
             },
             {
-                "type": "select",
-                "id": "ASSISTANT_RUNTIME",
-                "messageKey": "ASSISTANT_RUNTIME",
-                "label": "Runtime",
-                "description": "Automatic sends prompts to Billy Companion when it is installed. Choose Companionless when using only the PBW.",
-                "defaultValue": "automatic",
-                "options": [
-                    {"label": "Automatic", "value": "automatic"},
-                    {"label": "Companionless", "value": "companionless"},
-                    {"label": "Android companion", "value": "android"}
-                ]
+                "type": "text",
+                "defaultValue": "Buddy sends your prompts to your own llama-server (OpenAI-compatible API) behind Cloudflare Access. The values below are stored only in the Pebble phone app and are never sent to the watch. When you change them, Buddy checks the connection after saving and shows the result on your watch."
             },
             {
                 "type": "input",
-                "id": "GEMINI_API_KEY",
-                "messageKey": "GEMINI_API_KEY",
-                "label": "Gemini API key",
-                "description": "Stored locally by the Pebble phone app. Required for companionless mode.",
-                "defaultValue": ""
+                "id": "LLM_BASE_URL",
+                "messageKey": "LLM_BASE_URL",
+                "label": "Server URL",
+                "description": "Base URL without a path, e.g. https://llm.example.com. Buddy appends /v1/chat/completions.",
+                "defaultValue": "",
+                "attributes": {
+                    "type": "url",
+                    "placeholder": "https://llm.example.com",
+                    "autocapitalize": "off",
+                    "autocorrect": "off"
+                }
             },
             {
                 "type": "input",
-                "id": "GEMINI_MODEL",
-                "messageKey": "GEMINI_MODEL",
-                "label": "Gemini model",
-                "description": "The Gemini API model used by the local assistant runtime.",
-                "defaultValue": "gemini-3.1-flash-lite"
+                "id": "CF_ACCESS_CLIENT_ID",
+                "messageKey": "CF_ACCESS_CLIENT_ID",
+                "label": "Cloudflare Access Client ID",
+                "description": "From the Access service token. Sent as CF-Access-Client-Id header.",
+                "defaultValue": "",
+                "attributes": {
+                    "type": "password",
+                    "autocomplete": "off",
+                    "autocapitalize": "off",
+                    "autocorrect": "off"
+                }
             },
             {
                 "type": "input",
-                "id": "GEMINI_MONTHLY_BUDGET_USD",
-                "messageKey": "GEMINI_MONTHLY_BUDGET_USD",
-                "label": "Gemini monthly budget",
-                "description": "Used only for Billy's local estimate on the Quota screen. Google AI Studio billing is authoritative.",
-                "defaultValue": "10"
+                "id": "CF_ACCESS_CLIENT_SECRET",
+                "messageKey": "CF_ACCESS_CLIENT_SECRET",
+                "label": "Cloudflare Access Client Secret",
+                "description": "From the Access service token. Sent as CF-Access-Client-Secret header.",
+                "defaultValue": "",
+                "attributes": {
+                    "type": "password",
+                    "autocomplete": "off",
+                    "autocapitalize": "off",
+                    "autocorrect": "off"
+                }
             },
             {
                 "type": "input",
-                "id": "GITHUB_ISSUES_URL",
-                "messageKey": "GITHUB_ISSUES_URL",
-                "label": "Feedback GitHub issues URL",
-                "description": "Feedback opens a prefilled issue here. Use your fork's /issues/new URL.",
-                "defaultValue": "https://github.com/tombolger/Billy/issues/new"
+                "id": "LLM_API_KEY",
+                "messageKey": "LLM_API_KEY",
+                "label": "llama-server API key (optional)",
+                "description": "Only if llama-server runs with --api-key. Sent as Authorization: Bearer header, in addition to the Access token.",
+                "defaultValue": "",
+                "attributes": {
+                    "type": "password",
+                    "autocomplete": "off",
+                    "autocapitalize": "off",
+                    "autocorrect": "off"
+                }
             },
             {
                 "type": "input",
-                "id": "FEEDBACK_POST_URL",
-                "messageKey": "FEEDBACK_POST_URL",
-                "label": "Feedback POST endpoint",
-                "description": "Optional. Bobby-style feedback posts JSON here and returns Sent/Error on the watch. Leave blank to open a prefilled GitHub issue instead.",
-                "defaultValue": ""
+                "id": "LLM_MODEL",
+                "messageKey": "LLM_MODEL",
+                "label": "Model",
+                "description": "Sent as the model field. Must be a model name your server knows, otherwise it answers \"model not found\".",
+                "defaultValue": "qwen2.5-14b-instruct",
+                "attributes": {
+                    "autocapitalize": "off",
+                    "autocorrect": "off"
+                }
             },
             {
-                "type": "input",
-                "id": "USER_PROFILE_CONTEXT",
-                "messageKey": "USER_PROFILE_CONTEXT",
-                "label": "Billy profile context",
-                "description": "Optional companionless memory/profile notes Billy should use, such as preferred name, home timezone, family names, pets, or preferences. Stored locally by the Pebble phone app.",
-                "defaultValue": ""
+                "type": "slider",
+                "id": "LLM_TIMEOUT_SECONDS",
+                "messageKey": "LLM_TIMEOUT_SECONDS",
+                "label": "Request timeout (seconds)",
+                "description": "Cloudflare cuts requests off after 100 seconds.",
+                "defaultValue": 45,
+                "min": 10,
+                "max": 90,
+                "step": 5
+            },
+            {
+                "type": "toggle",
+                "id": "FAST_PATH_ENABLED",
+                "messageKey": "FAST_PATH_ENABLED",
+                "label": "Instant timers and alarms",
+                "description": "Simple commands such as \"Set a timer for 5 minutes\" are handled on the phone without asking the model.",
+                "defaultValue": true
+            },
+            {
+                "type": "toggle",
+                "id": "STREAM_ANSWERS",
+                "messageKey": "STREAM_ANSWERS",
+                "label": "Show answers while they are written",
+                "description": "The answer appears on the watch while the model is still writing it. Works with the Pebble app on Android; on iPhone the answer still arrives in one piece.",
+                "defaultValue": true
             }
         ]
     },
@@ -86,7 +122,7 @@
                 "id": "languageCode",
                 "messageKey": "LANGUAGE_CODE",
                 "label": "Response language",
-                "description": "Controls the language of Billy's replies. Does not currently translate the rest of the UI. If 'automatic', Billy will attempt to respond in the same language the question was asked.",
+                "description": "Controls the language of Buddy's replies. Does not currently translate the rest of the UI. If 'automatic', Buddy will attempt to respond in the same language the question was asked.",
                 "defaultValue": "",
                 "options": [
                     {"label": "Automatic", "value": ""},
@@ -144,6 +180,91 @@
         "items": [
             {
                 "type": "heading",
+                "defaultValue": "Quick prompts"
+            },
+            {
+                "type": "select",
+                "id": "QUICK_PROMPTS",
+                "messageKey": "QUICK_PROMPTS",
+                "label": "Quick prompts",
+                "description": "The suggestions shown when you press Up on the start screen. Automatic uses the response language, or the phone's language. Custom shows your own prompts (one per field; all of them together may use up to 250 bytes).",
+                "defaultValue": "auto",
+                "options": [
+                    {"label": "Automatic", "value": "auto"},
+                    {"label": "English", "value": "en"},
+                    {"label": "Deutsch", "value": "de"},
+                    {"label": "Fran\u00e7ais", "value": "fr"},
+                    {"label": "Italiano", "value": "it"},
+                    {"label": "Custom", "value": "custom"}
+                ]
+            },
+            {
+                "type": "input",
+                "id": "CUSTOM_PROMPT_1",
+                "messageKey": "CUSTOM_PROMPT_1",
+                "label": "Custom prompt 1",
+                "defaultValue": "",
+                "attributes": {
+                    "maxlength": 60
+                }
+            },
+            {
+                "type": "input",
+                "id": "CUSTOM_PROMPT_2",
+                "messageKey": "CUSTOM_PROMPT_2",
+                "label": "Custom prompt 2",
+                "defaultValue": "",
+                "attributes": {
+                    "maxlength": 60
+                }
+            },
+            {
+                "type": "input",
+                "id": "CUSTOM_PROMPT_3",
+                "messageKey": "CUSTOM_PROMPT_3",
+                "label": "Custom prompt 3",
+                "defaultValue": "",
+                "attributes": {
+                    "maxlength": 60
+                }
+            },
+            {
+                "type": "input",
+                "id": "CUSTOM_PROMPT_4",
+                "messageKey": "CUSTOM_PROMPT_4",
+                "label": "Custom prompt 4",
+                "defaultValue": "",
+                "attributes": {
+                    "maxlength": 60
+                }
+            },
+            {
+                "type": "input",
+                "id": "CUSTOM_PROMPT_5",
+                "messageKey": "CUSTOM_PROMPT_5",
+                "label": "Custom prompt 5",
+                "defaultValue": "",
+                "attributes": {
+                    "maxlength": 60
+                }
+            },
+            {
+                "type": "input",
+                "id": "CUSTOM_PROMPT_6",
+                "messageKey": "CUSTOM_PROMPT_6",
+                "label": "Custom prompt 6",
+                "defaultValue": "",
+                "attributes": {
+                    "maxlength": 60
+                }
+            }
+        ]
+    },
+    {
+        "type": "section",
+        "items": [
+            {
+                "type": "heading",
                 "defaultValue": "Behaviour"
             },
             {
@@ -176,7 +297,7 @@
                 "type": "select",
                 "messageKey": "QUICK_LAUNCH_BEHAVIOUR",
                 "label": "Quick launch behaviour",
-                "description": "What to do when Billy is launched via Quick Launch. If 'start conversation' is selected, Billy will start listening immediately. If 'stay open' is chosen, Billy will quit after a minute of inactivity. If 'open home screen' is chosen, Billy will behave the same as if launched from the app launcher.",
+                "description": "What to do when Buddy is launched via Quick Launch. If 'start conversation' is selected, Buddy will start listening immediately. If 'stay open' is chosen, Buddy will quit after a minute of inactivity. If 'open home screen' is chosen, Buddy will behave the same as if launched from the app launcher.",
                 "defaultValue": "1",
                 "options": [
                     {"label": "Start conversation and time out", "value": "1"},
@@ -189,7 +310,7 @@
                 "messageKey": "CONFIRM_TRANSCRIPTS",
                 "defaultValue": false,
                 "label": "Confirm prompts before responding",
-                "description": "When enabled, after dictating to the watch, you'll always be asked to confirm your input before Billy takes action. When disabled, Billy will respond immediately to whatever was recognised."
+                "description": "When enabled, after dictating to the watch, you'll always be asked to confirm your input before Buddy takes action. When disabled, Buddy will respond immediately to whatever was recognised."
             }
         ]
     },
@@ -205,9 +326,29 @@
                 "messageKey": "LOCATION_ENABLED",
                 "defaultValue": true,
                 "label": "Allow location access",
-                "description": "Billy can use your location to provide contextually relevant information, including local weather and transit as well as more broadly understanding your local context."
+                "description": "Buddy can use your location for local weather and to understand your local context. Coordinates are sent to your own server with your prompts."
             }
         ]
+    },
+    {
+        "type": "section",
+        "items": [
+            {
+                "type": "heading",
+                "defaultValue": "Development"
+            },
+            {
+                "type": "toggle",
+                "id": "EMULATOR_REAL_SERVER",
+                "messageKey": "EMULATOR_REAL_SERVER",
+                "defaultValue": false,
+                "label": "Emulator: use the real server",
+                "description": "Only affects the Pebble emulator. When off, the emulator replays recorded answers."
+            }
+        ]
+    },
+    {
+        "type": "buddy-privacy"
     },
     {
         "type": "submit",
