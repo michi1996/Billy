@@ -28,6 +28,9 @@ Pebble app – no companion app and no third-party cloud service.
 - follow-up questions with an option picker on the watch
 - simple timers and alarms ("Set a timer for 5 minutes", "Set an alarm for 6:45 am") instantly,
   without the model (can be switched off; ambiguous times like "7:30" without am/pm go to the model)
+- also instantly: which timers and alarms are set and how long a timer has left ("What alarms do I
+  have?", "Wie lange läuft mein Timer noch?"), and deleting them ("Cancel my timer", "Lösche alle
+  Wecker", "Delete the alarm at 6:45 am"); with several to choose from, the model asks which one
 
 ## Setup
 

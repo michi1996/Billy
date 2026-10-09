@@ -43,11 +43,18 @@ function Runtime(session, options) {
 }
 
 Runtime.prototype.run = function() {
-    var session = this.session;
-    var threadId = localHistory.ensureThreadId(session);
-    if (config.isFastPathEnabled() && runFastPath(session, threadId)) {
+    var runtime = this;
+    var threadId = localHistory.ensureThreadId(this.session);
+    if (config.isFastPathEnabled() && runFastPath(this.session, threadId, function() {
+        runtime.runModel(threadId);
+    })) {
         return;
     }
+    this.runModel(threadId);
+};
+
+Runtime.prototype.runModel = function(threadId) {
+    var session = this.session;
     var messages = [{role: 'system', content: promptBuilder.buildSystemPrompt()}]
         .concat(localHistory.buildMessages(threadId))
         .concat([{role: 'user', content: promptBuilder.buildUserMessage(session.prompt, clock.now())}]);
@@ -63,9 +70,14 @@ Runtime.prototype.run = function() {
     step(loop, 0);
 };
 
-// Simple timer/alarm commands are handled without the model (see fast_path.js).
-function runFastPath(session, threadId) {
+// Simple timer/alarm commands are handled without the model (see fast_path.js). If the fast
+// path finds the request ambiguous after all (text === null), the model takes over.
+function runFastPath(session, threadId, askModel) {
     return fastPath.tryHandle(session, function(text, isError) {
+        if (text === null) {
+            askModel();
+            return;
+        }
         localHistory.recordTurn(threadId, session.prompt, text);
         if (isError) {
             fail(session, text);

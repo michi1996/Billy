@@ -122,8 +122,6 @@ const passToLlm = [
     'Timer 1 Stunde 30 Minuten',
     'Timer 0 Minuten',
     'Timer 9999 Stunden',
-    'Wie lange läuft mein Timer noch?',
-    'Lösche den Timer',
     'Erinnere mich in 5 Minuten an den Tee',
     'BILLY_CLARIFICATION_ANSWER\ncontext=x\nquestion=y\nanswer=Timer 5 Minuten',
     'Wie wird das Wetter morgen?',
