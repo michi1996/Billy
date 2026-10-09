@@ -96,6 +96,11 @@ exports.getCfAccessClientSecret = function() {
     return compact(exports.getSetting('CF_ACCESS_CLIENT_SECRET', ''));
 }
 
+// Optional: llama-server's own key (--api-key), sent as Authorization: Bearer.
+exports.getLlmApiKey = function() {
+    return compact(exports.getSetting('LLM_API_KEY', ''));
+};
+
 exports.getLlmModel = function() {
     var model = compact(exports.getSetting('LLM_MODEL', ''));
     return model || exports.DEFAULT_LLM_MODEL;
@@ -114,6 +119,7 @@ exports.getLlmSettings = function() {
         baseUrl: exports.getLlmBaseUrl(),
         clientId: exports.getCfAccessClientId(),
         clientSecret: exports.getCfAccessClientSecret(),
+        apiKey: exports.getLlmApiKey(),
         model: exports.getLlmModel(),
         timeoutSeconds: exports.getLlmTimeoutSeconds()
     };

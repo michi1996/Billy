@@ -144,6 +144,7 @@ h.test('recovers <tool_call> blocks left in the content', (env) => {
 
 const errorCases = [
     ['401', (x) => x.respond(401, '{"error":"no"}'), 'Access denied - check the service token'],
+    ['401 from llama-server --api-key', (x) => x.respond(401, '{"error":{"code":401,"message":"Invalid API Key","type":"authentication_error"}}'), 'Access denied - check the API key'],
     ['403', (x) => x.respond(403, 'Forbidden', {'Content-Type': 'text/plain'}), 'Access denied - check the service token'],
     ['HTML login page after redirect (200)', (x) => x.respond(200, '<!DOCTYPE html><html><title>Sign in</title></html>', {'Content-Type': 'text/html; charset=utf-8'}, 'https://team.cloudflareaccess.com/cdn-cgi/access/login'), 'Access denied - check the service token'],
     ['HTML without content type', (x) => x.respond(200, '  <html>login</html>', {}), 'Access denied - check the service token'],
@@ -231,4 +232,19 @@ h.test('timeout setting is clamped to 10-90 seconds', () => {
     h.settings({});
     assert.strictEqual(config.getLlmTimeoutSeconds(), 45);
     assert.strictEqual(config.getLlmModel(), 'qwen2.5-14b-instruct');
+});
+
+h.test('the optional API key goes into an Authorization header, never into URL, body or log', (env) => {
+    const KEY = 'sk-llama-0f9e8d7c6b5a';
+    configure({LLM_API_KEY: KEY});
+    const c = call(env, (x) => x.respond(200, h.chatResponse({content: 'ok'})));
+    assert.strictEqual(c.xhr.headers['Authorization'], 'Bearer ' + KEY);
+    assert.ok(c.xhr.url.indexOf(KEY) === -1 && c.xhr.sentBody.indexOf(KEY) === -1);
+    env.logs.forEach((line) => assert.ok(line.indexOf(KEY) === -1, line));
+});
+
+h.test('without an API key no Authorization header is sent', () => {
+    configure();
+    const c = call(null);
+    assert.ok(!('Authorization' in c.xhr.headers));
 });

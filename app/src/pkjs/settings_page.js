@@ -26,7 +26,7 @@ var serverCheck = require('./server_check');
 
 var STORAGE_KEY = 'clay-settings';
 
-exports.SECRET_KEYS = ['CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET'];
+exports.SECRET_KEYS = ['CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET', 'LLM_API_KEY'];
 exports.WATCH_KEYS = ['QUICK_LAUNCH_BEHAVIOUR', 'ALARM_VIBE_PATTERN', 'TIMER_VIBE_PATTERN', 'CONFIRM_TRANSCRIPTS'];
 exports.SECRET_PLACEHOLDER = '__buddy_unchanged__';
 // Marks a value that travels URL-encoded to the config page (see encodeForPage).

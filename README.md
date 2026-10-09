@@ -35,6 +35,7 @@ Pebble app – no companion app and no third-party cloud service.
 3. **Fill in the settings** in the Pebble app → Buddy:
    - *Server URL* – e.g. `https://llm.example.com` (no path)
    - *Cloudflare Access Client ID* and *Client Secret*
+   - *llama-server API key* – optional, only if llama-server runs with `--api-key`
    - *Model* – default `qwen2.5-14b-instruct`
    - *Request timeout* – 10–90 s, default 45 s
    - language, units and location access as you like

@@ -25,7 +25,7 @@ var llmClient = require('./agent/llm_client');
 var STORAGE_KEY = 'buddy-server-check';
 
 // Settings that change which server, token or model is used.
-exports.SERVER_KEYS = ['LLM_BASE_URL', 'CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET', 'LLM_MODEL'];
+exports.SERVER_KEYS = ['LLM_BASE_URL', 'CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET', 'LLM_API_KEY', 'LLM_MODEL'];
 
 exports.lastResult = function(storage) {
     try {

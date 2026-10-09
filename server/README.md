@@ -51,6 +51,10 @@ llama-server \
 - `-np 1` (one slot): Buddy sends the same system prompt and tool list with every request. With
   a single slot that prefix stays in the KV cache and is not recomputed (Buddy sets
   `cache_prompt: true`). This saves several seconds per request.
+- Optional `--api-key <key>`: llama-server then also requires its own key
+  (`Authorization: Bearer`). Buddy sends it when you enter it under *llama-server API key*.
+  This is a second lock behind Cloudflare Access, in case the Access policy is ever changed by
+  mistake. For the smoke test, set `LLM_API_KEY` as well.
 - **Don't quantise the KV cache aggressively.** The default is f16. If VRAM is tight,
   `-ctk q8_0 -ctv q8_0` is still fine; `q4_0` for the KV cache noticeably hurts tool calls and
   date arithmetic.
@@ -174,6 +178,7 @@ The watch shows the server's own error text after the status code; the app log
 |---|---|
 | `Server error (400): tools param requires --jinja flag` | llama-server was started without `--jinja`. Buddy always sends tools; restart with `--jinja`. |
 | `Server error (400): the request exceeds the available context size…` | Context too small; raise `-c` (8192 is enough for Buddy). |
+| `Access denied - check the API key` | llama-server runs with `--api-key` and the key in Buddy's settings is missing or wrong. |
 | `Access denied - check the service token` | Token wrong or expired, or the Access policy is not *Service Auth*. Check with `smoke-test.sh` (a) and (b). |
 | `Server unreachable (530)` / `(502)` | The tunnel or llama-server is down; check `cloudflared` and llama-server. |
 | `The model took too long` | Cloudflare's 100 s limit (HTTP 524). Use a smaller quantisation, keep `-np 1` for the prompt cache, or check that the model runs on the GPU. |
@@ -189,7 +194,8 @@ In the Pebble app → Buddy → Settings:
 
 - **Server URL:** `https://llm.example.com` (no path; Buddy appends `/v1/chat/completions`)
 - **Cloudflare Access Client ID / Client Secret:** from step 4
-- **Model:** `qwen2.5-14b-instruct` (sent along; llama-server usually ignores it)
+- **llama-server API key:** only if you started llama-server with `--api-key`
+- **Model:** `qwen2.5-14b-instruct` (must match a model name your server knows, e.g. its `--alias`)
 - **Request timeout:** 45 s is a good start, 90 s at most
 
 The values stay in the Pebble app on the phone and are never sent to the watch.

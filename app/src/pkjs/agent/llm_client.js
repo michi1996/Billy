@@ -15,8 +15,8 @@
  */
 
 // Client for llama-server's OpenAI-compatible /v1/chat/completions endpoint behind
-// Cloudflare Access. The service token goes into request headers only: never into the URL,
-// never into logs, never to the watch.
+// Cloudflare Access. The service token (and llama-server's optional API key) go into request
+// headers only: never into the URL, never into logs, never to the watch.
 
 var config = require('../config');
 
@@ -28,6 +28,7 @@ var MESSAGES = {
     notConfigured: 'Set up the server in the app settings',
     unreachable: 'Server unreachable',
     accessDenied: 'Access denied - check the service token',
+    apiKeyDenied: 'Access denied - check the API key',
     tooSlow: 'The model took too long',
     invalidResponse: 'Invalid response from the server'
 };
@@ -102,6 +103,15 @@ exports.errorDetail = function(text, contentType) {
     return detail.replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '');
 };
 
+// llama-server's answer to a missing or wrong --api-key:
+// {"error": {"code": 401, "message": "Invalid API Key", "type": "authentication_error"}}
+function isApiKeyError(text, contentType) {
+    if (/authentication_error/.test(text || '')) {
+        return true;
+    }
+    return /api key/i.test(exports.errorDetail(text, contentType));
+}
+
 function clip(text, max) {
     return text.length > max ? text.substring(0, max - 3) + '...' : text;
 }
@@ -109,6 +119,9 @@ function clip(text, max) {
 exports.mapHttpError = function(status, text, contentType, responseUrl) {
     if (!status) {
         return makeError('unreachable', MESSAGES.unreachable, 0);
+    }
+    if (status === 401 && isApiKeyError(text, contentType)) {
+        return makeError('access_denied', MESSAGES.apiKeyDenied, status);
     }
     if (status === 401 || status === 403 || (status >= 300 && status < 400)) {
         return makeError('access_denied', MESSAGES.accessDenied, status);
@@ -434,6 +447,9 @@ exports.createClient = function(options) {
         xhr.setRequestHeader('Accept', streaming ? 'text/event-stream' : 'application/json');
         xhr.setRequestHeader('CF-Access-Client-Id', settings.clientId);
         xhr.setRequestHeader('CF-Access-Client-Secret', settings.clientSecret);
+        if (settings.apiKey) {
+            xhr.setRequestHeader('Authorization', 'Bearer ' + settings.apiKey);
+        }
         if (streaming) {
             xhr.onprogress = readStream;
             xhr.onreadystatechange = function() {

@@ -25,7 +25,7 @@ module.exports = function() {
     // Must match settings_page.PAGE_ENCODED_PREFIX: values with characters that would break the
     // page arrive URL-encoded behind this marker.
     var PAGE_ENCODED_PREFIX = '__buddy_encoded__:';
-    var SECRET_KEYS = ['CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET'];
+    var SECRET_KEYS = ['CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET', 'LLM_API_KEY'];
     // Must match quick_prompts.js.
     var CUSTOM_KEYS = ['CUSTOM_PROMPT_1', 'CUSTOM_PROMPT_2', 'CUSTOM_PROMPT_3',
                        'CUSTOM_PROMPT_4', 'CUSTOM_PROMPT_5', 'CUSTOM_PROMPT_6'];
@@ -306,7 +306,7 @@ module.exports = function() {
         ]);
         var urlElement = urlItem.$element[0];
         urlElement.parentNode.insertBefore(status, urlElement);
-        ['LLM_BASE_URL', 'CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET', 'LLM_MODEL'].forEach(function(key) {
+        ['LLM_BASE_URL', 'LLM_MODEL'].concat(SECRET_KEYS).forEach(function(key) {
             var item = clayConfig.getItemByMessageKey(key);
             if (item) {
                 item.$manipulatorTarget[0].addEventListener('input', function() {

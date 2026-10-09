@@ -158,3 +158,17 @@ h.test('the settings page gets the last result without secrets or page-breaking 
     assert.ok(check.time > 0);
     assert.ok(JSON.stringify(clay.pageMeta).indexOf(SECRET) === -1);
 });
+
+h.test('a changed API key checks the server again', (env) => {
+    h.settings({});
+    install(env);
+    save(env, SERVER);
+    env.xhrs[0].respond(200, h.chatResponse({content: 'Hi'}));
+    const unchanged = Object.assign({}, SERVER, {CF_ACCESS_CLIENT_ID: '__buddy_unchanged__', CF_ACCESS_CLIENT_SECRET: '__buddy_unchanged__'});
+    save(env, Object.assign({}, unchanged, {LLM_API_KEY: 'sk-new-key'}));
+    assert.strictEqual(env.xhrs.length, 2);
+    assert.strictEqual(env.xhrs[1].headers['Authorization'], 'Bearer sk-new-key');
+    env.xhrs[1].respond(401, {error: {code: 401, message: 'Invalid API Key', type: 'authentication_error'}});
+    assert.strictEqual(env.pebble.notifications[1].body, 'Server check failed\nAccess denied - check the API key');
+    assert.ok(env.logs.every((line) => line.indexOf('sk-new-key') === -1));
+});

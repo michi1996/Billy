@@ -115,7 +115,7 @@ h.test('cancelling the page changes nothing', (env) => {
 h.test('secret Clay fields are password inputs and not AppMessage keys', () => {
     const config = require('../src/pkjs/config.json');
     const items = [].concat.apply([], config.filter((s) => s.items).map((s) => s.items));
-    ['CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET'].forEach((key) => {
+    ['CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET', 'LLM_API_KEY'].forEach((key) => {
         const item = items.find((i) => i.messageKey === key);
         assert.ok(item, key + ' missing');
         assert.strictEqual(item.attributes.type, 'password');
@@ -146,4 +146,16 @@ h.test('values that would break the config page travel encoded and come back unc
     assert.strictEqual(JSON.parse(env.storage.getItem('clay-settings')).CUSTOM_PROMPT_1, risky);
     env.pebble.dispatch('webviewclosed', {response: pageResponse(Object.assign({}, ALL, {CUSTOM_PROMPT_1: risky}))});
     assert.strictEqual(JSON.parse(env.storage.getItem('clay-settings')).CUSTOM_PROMPT_1, risky);
+});
+
+h.test('the API key is treated like the service token on the config page', (env) => {
+    const KEY = 'sk-llama-0f9e8d7c6b5a';
+    h.settings(Object.assign({}, ALL, {LLM_API_KEY: KEY}));
+    const clay = install(env);
+    env.pebble.dispatch('showConfiguration', {});
+    assert.strictEqual(clay.pageSettings.LLM_API_KEY, '__buddy_unchanged__');
+    assert.ok(decodeURIComponent(env.pebble.openedUrls[0]).indexOf(KEY) === -1);
+    env.pebble.dispatch('webviewclosed', {response: pageResponse(Object.assign({}, ALL, {LLM_API_KEY: '__buddy_unchanged__'}))});
+    assert.strictEqual(JSON.parse(env.storage.getItem('clay-settings')).LLM_API_KEY, KEY);
+    assert.ok(JSON.stringify(env.pebble.sent).indexOf(KEY) === -1, 'API key sent to the watch');
 });

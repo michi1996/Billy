@@ -3,8 +3,9 @@
 #
 # Needs: bash, curl (>= 7.55), python3.
 # Reads LLM_BASE_URL, CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET from the environment
-# (optionally LLM_MODEL). The token values are never printed and never passed as command-line
-# arguments (curl reads the headers from a file with mode 600).
+# (optionally LLM_MODEL, and LLM_API_KEY if llama-server runs with --api-key). The token values
+# are never printed and never passed as command-line arguments (curl reads the headers from a
+# file with mode 600).
 #
 #   LLM_BASE_URL=https://llm.example.com \
 #   CF_ACCESS_CLIENT_ID=... CF_ACCESS_CLIENT_SECRET=... ./smoke-test.sh
@@ -31,6 +32,9 @@ umask 077
 # printf is a shell builtin, so the values don't show up in the process list.
 printf 'CF-Access-Client-Id: %s\nCF-Access-Client-Secret: %s\n' \
     "$CF_ACCESS_CLIENT_ID" "$CF_ACCESS_CLIENT_SECRET" > "$workdir/auth-headers"
+if [[ -n "${LLM_API_KEY:-}" ]]; then
+    printf 'Authorization: Bearer %s\n' "$LLM_API_KEY" >> "$workdir/auth-headers"
+fi
 
 failures=0
 pass() { echo "  OK    $*"; }
@@ -103,6 +107,8 @@ read -r code secs ctype < <(post "$workdir/hello.json" "$workdir/b.body" auth)
 content="$(json "$workdir/b.body" "d['choices'][0]['message']['content']")"
 if [[ "$code" == "200" && "$ctype" == application/json* && -n "$content" ]]; then
     pass "HTTP 200, JSON, answer: $(echo "$content" | head -c 60) ($(seconds "$secs"))"
+elif [[ "$code" == "401" && "$ctype" == application/json* ]]; then
+    fail "HTTP 401 from llama-server - set LLM_API_KEY to the key llama-server was started with (--api-key)"
 elif [[ "$ctype" == text/html* || "$code" =~ ^(30[1237]|401|403)$ ]]; then
     fail "Access denied (HTTP $code, $ctype) - check the service token and the Access policy (Service Auth)"
 elif [[ "$code" == "000" ]]; then

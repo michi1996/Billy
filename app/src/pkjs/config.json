@@ -57,6 +57,20 @@
             },
             {
                 "type": "input",
+                "id": "LLM_API_KEY",
+                "messageKey": "LLM_API_KEY",
+                "label": "llama-server API key (optional)",
+                "description": "Only if llama-server runs with --api-key. Sent as Authorization: Bearer header, in addition to the Access token.",
+                "defaultValue": "",
+                "attributes": {
+                    "type": "password",
+                    "autocomplete": "off",
+                    "autocapitalize": "off",
+                    "autocorrect": "off"
+                }
+            },
+            {
+                "type": "input",
                 "id": "LLM_MODEL",
                 "messageKey": "LLM_MODEL",
                 "label": "Model",
